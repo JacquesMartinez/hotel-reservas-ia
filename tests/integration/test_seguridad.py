@@ -57,6 +57,12 @@ def limpiar():
     ejecutar("DELETE FROM Fancy_Hotel.Manager WHERE username = %s", (MANAGER,))
 
 
+def columnas_credit_card():
+    filas = ejecutar("""SELECT COLUMN_NAME FROM information_schema.COLUMNS
+                        WHERE TABLE_SCHEMA = 'Fancy_Hotel' AND TABLE_NAME = 'Credit_Card'""")
+    return {f[0].lower() for f in filas}
+
+
 def clave_para_guardar():
     """Hash si la columna lo admite; texto plano si sigue siendo VARCHAR(16)."""
     filas = ejecutar("""SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS
@@ -75,9 +81,14 @@ def usuarios():
                     VALUES (%s, %s, 'Test', 'Seguridad', %s)""",
                  (usuario, clave, f"{usuario.lower()}@example.com"))
     ejecutar("INSERT INTO Fancy_Hotel.Manager (username, password) VALUES (%s, %s)", (MANAGER, clave))
-    ejecutar("""INSERT INTO Fancy_Hotel.Credit_Card (card_number, name, cvv, expiration_date, username)
-                VALUES (%s, 'Cliente Dos', '123', %s, %s)""",
-             (TARJETA_CLIENTE_2, date.today() + timedelta(days=3 * 365), CLIENTE_2))
+    vence = date.today() + timedelta(days=3 * 365)
+    if "cvv" in columnas_credit_card():   # esquema anterior a la HU de pago guardado
+        ejecutar("""INSERT INTO Fancy_Hotel.Credit_Card (card_number, name, cvv, expiration_date, username)
+                    VALUES (%s, 'Cliente Dos', '123', %s, %s)""", (TARJETA_CLIENTE_2, vence, CLIENTE_2))
+    else:                                 # esquema nuevo: card_number guarda un token
+        ejecutar("""INSERT INTO Fancy_Hotel.Credit_Card
+                    (card_number, name, expiration_date, username, last4, is_default)
+                    VALUES (%s, 'Cliente Dos', %s, %s, '9902', 1)""", (TARJETA_CLIENTE_2, vence, CLIENTE_2))
     yield
     limpiar()
 

@@ -66,3 +66,22 @@
 - **Por qué es incorrecto:** modificar una reserva existente todavía permite 0 noches, tanto en el servidor como en su calendario.
 - **Cómo lo detectamos:** la IA lo informó como pendiente.
 - **Corrección aplicada:** pendiente de decisión.
+
+## RI-07: Afirmó que no podía probar en un navegador
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Herramienta:** Claude Code
+- **Qué se pidió:** plan de verificación de la Etapa 4.
+- **Qué respondió la IA:** que la interacción en el navegador le tocaba confirmarla al usuario, porque no podía abrir uno.
+- **Por qué es incorrecto:** al implementar la etapa sí probó en Chrome headless con puppeteer-core, como ya había hecho en el issue anterior.
+- **Cómo lo detectamos:** revisión, comparando el plan con el reporte de la Etapa 4.
+- **Corrección aplicada:** ninguna necesaria. La prueba en navegador se hizo igual.
+
+## RI-08: El ALTER "ejecutable en cada arranque" puede bloquear el arranque
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Herramienta:** Claude Code
+- **Qué se pidió:** un `ALTER TABLE ... MODIFY` en `init_db` que se pueda ejecutar en cada arranque sin error.
+- **Qué respondió la IA:** que el ALTER se podía ejecutar en cada arranque y que MySQL no cambia nada ni da error.
+- **Por qué es incorrecto:** no da error, pero con la app corriendo otro proceso que importa `db` (las pruebas de integración o `seed.py`) se queda esperando un bloqueo, porque la conexión de la app deja transacciones abiertas (relacionado con B4).
+- **Cómo lo detectamos:** ejecución. La IA lo encontró durante las pruebas de la Etapa 4.
+- **Corrección aplicada:** pendiente. Mientras tanto, detener la app antes de ejecutar las pruebas de integración o el seed.
+

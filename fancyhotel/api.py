@@ -1,8 +1,9 @@
 from functools import wraps
 from flask import session
-from flask_restful import Resource, reqparse, abort, request
+import re
+from flask_restful import Resource, reqparse, abort, request, inputs
 import db #instantiates the database so we don't have to do that in here
-from datetime import datetime
+from datetime import datetime, date
 
 
 def login_required(method):
@@ -37,6 +38,20 @@ def validate_stay(checkIn, checkOut):
 	if nights < 1:
 		return None, ({"message": "The check-out must be at least one night after the check-in", "result": False}, 400)
 	return nights, None
+
+def validate_card(card_number, cvv, expiration_date):
+	#returns (last4, None) or (None, error response); the number and cvv are never stored or logged (D-02, D-08)
+	if not re.fullmatch(r'\d{16}', card_number or ''):
+		return None, ({"message": "The card number must have 16 digits", "result": False}, 400)
+	if not re.fullmatch(r'\d{3}', cvv or ''):
+		return None, ({"message": "The security code must have 3 digits", "result": False}, 400)
+	try:
+		expires = datetime.strptime(expiration_date, "%Y-%m-%d").date()
+	except (TypeError, ValueError):
+		return None, ({"message": "The expiration date must use the format YYYY-MM-DD", "result": False}, 400)
+	if expires < date.today():
+		return None, ({"message": "This card has expired", "result": False}, 400)
+	return card_number[-4:], None
 
 #every method of a class has to have (self)
 class NewUserRegistrationResource(Resource):
@@ -104,10 +119,10 @@ class CreateReservationResource(Resource):
 		self.reqparse = reqparse.RequestParser()
 		self.reqparse.add_argument('checkIn', type=str, required=True, help="Please provide a checkIn")
 		self.reqparse.add_argument('checkOut', type=str, required=True, help="Please provide a checkOut")
-		self.reqparse.add_argument('card_number', type=str, required=True, help="Please provide a card_number")
+		self.reqparse.add_argument('card_token', type=str, location='json') #optional: without it, the user's default card is used
 		self.reqparse.add_argument('rooms', type=list, required=True, help="Please provide a list of rooms")
 		super(CreateReservationResource, self).__init__()
-		
+
 	def post(self):
 		args = self.reqparse.parse_args()
 		json_body = request.json
@@ -116,24 +131,38 @@ class CreateReservationResource(Resource):
 		deltaDays, error = validate_stay(args["checkIn"], args["checkOut"])
 		if error:
 			return error
-		required_keys = ('location', 'room_number', 'cost', 'extra_bed_or_not')
+		required_keys = ('location', 'room_number', 'extra_bed_or_not')
 		for room in json_body['rooms']:
 			if not isinstance(room, dict) or any(room.get(key) in (None, '') for key in required_keys):
-				return {"message": "Each room needs a location, room_number, cost and extra_bed_or_not", "result": False}, 400
+				return {"message": "Each room needs a location, room_number and extra_bed_or_not", "result": False}, 400
+
+		#the card must belong to the session user (S4)
+		if args['card_token']:
+			card = db.mysqldb.get_credit_card(session['username'], args['card_token'])
+			if not card:
+				return {"message": "This credit card does not belong to you", "result": False}, 403
+		else:
+			card = next((c for c in db.mysqldb.get_credit_cards(session['username']) if c['is_default']), None)
+			if not card:
+				return {"message": "You have no default credit card. Please select or add one", "result": False}, 400
 
 		#the rooms may have been booked since the search, so check again before inserting anything
 		for room in json_body['rooms']:
 			if not db.mysqldb.is_room_free(room['room_number'], room['location'], args['checkIn'], args['checkOut'], -1):
 				return {"message": "Room %s in %s is no longer available for the selected dates" % (room['room_number'], room['location']), "result": False}, 409
 
+		#prices come from the Room table; cost and extra_bed_price sent by the client are ignored (S3)
 		total_cost = 0
-
 		for room in json_body['rooms']:
-			total_cost += room['cost']
+			prices = db.mysqldb.get_room_prices(room['location'], room['room_number'])
+			if not prices:
+				return {"message": "Room %s in %s does not exist" % (room['room_number'], room['location']), "result": False}, 400
+			room_cost, extra_bed_price = prices
+			total_cost += room_cost
 			if room['extra_bed_or_not'] == 1:
-				total_cost = total_cost + room['extra_bed_price']
+				total_cost += extra_bed_price or 0
 		total_cost *= deltaDays
-		id, message, result = db.mysqldb.insert_reservation(session['username'], args['checkIn'], args['checkOut'], args['card_number'], json_body['rooms'], total_cost)
+		id, message, result = db.mysqldb.insert_reservation(session['username'], args['checkIn'], args['checkOut'], card['token'], json_body['rooms'], total_cost)
 		
 		if not result:
 			return {"id": id, "message": message, "result": result}, 400
@@ -285,13 +314,14 @@ class CreditCardResource(Resource):
 
 	def __init__(self):
 		self.delete_reqparse = reqparse.RequestParser()
-		self.delete_reqparse.add_argument("card_number", type=str, required=True, help="Please provide a card number", location='args')
+		self.delete_reqparse.add_argument("token", type=str, required=True, help="Please provide a card token", location='args')
 		
 		self.create_reqparse = reqparse.RequestParser()
 		self.create_reqparse.add_argument("card_number", type=str, required=True, location='json', help="Please provide a card_number")
 		self.create_reqparse.add_argument("name", type=str, required=True, location='json', help="Please provide a name")
-		self.create_reqparse.add_argument("cvv", type=str, required=True, location='json', help="Please provide a ccv")
+		self.create_reqparse.add_argument("cvv", type=str, required=True, location='json', help="Please provide a security code")
 		self.create_reqparse.add_argument("expiration_date", type=str, required=True, location='json', help="Please provide a expiration_date")
+		self.create_reqparse.add_argument("make_default", type=inputs.boolean, default=False, location='json')
 		
 		super(CreditCardResource, self).__init__()
 		
@@ -300,25 +330,42 @@ class CreditCardResource(Resource):
 
 	def post(self):
 		args = self.create_reqparse.parse_args()
-		message, status = db.mysqldb.add_credit_card(session['username'], args['card_number'], args['cvv'], args['expiration_date'], args['name'])
-		if status:
-			return {'message': message, 'result': status}
-		return {'message': message, 'result': status}, 400
+		last4, error = validate_card(args['card_number'], args['cvv'], args['expiration_date'])
+		if error:
+			return error
+		card = db.mysqldb.add_credit_card(session['username'], last4, args['name'], args['expiration_date'], args['make_default'])
+		return {'message': "Credit card successfully created", 'result': True, 'card': card}
 		
 	def delete(self):
 		args = self.delete_reqparse.parse_args()
-		reservations = db.mysqldb.get_reservation_by_card_number(session['username'], args['card_number'])
+		if not db.mysqldb.get_credit_card(session['username'], args['token']):
+			return {'message': "This credit card was not found", 'result': False}, 404
+		reservations = db.mysqldb.get_reservation_by_card_number(session['username'], args['token'])
 
 		today = datetime.now()
 		for reservation in reservations:
 			if (datetime.strptime(reservation['checkout_date'], '%Y-%m-%d') - today).days > 0:
 				return {'message': "This card is used in a future reservation!", 'result': False}, 400
 
-		message, status = db.mysqldb.delete_credit_card(session['username'], args['card_number'])
+		message, status = db.mysqldb.delete_credit_card(session['username'], args['token'])
 
 		if status:
 			return {'message': message, 'result': status}
 		return {'message': message, 'result': status}, 400
+
+class CreditCardDefaultResource(Resource):
+	method_decorators = [login_required]
+
+	def __init__(self):
+		self.reqparse = reqparse.RequestParser()
+		self.reqparse.add_argument("token", type=str, required=True, location='json', help="Please provide a card token")
+		super(CreditCardDefaultResource, self).__init__()
+
+	def post(self): #leaves this card as the only default one of the user
+		args = self.reqparse.parse_args()
+		if not db.mysqldb.set_default_credit_card(session['username'], args['token']):
+			return {'message': "This credit card was not found", 'result': False}, 404
+		return {'message': "Default credit card updated", 'result': True}
 
 class ReviewResource(Resource):
 	method_decorators = {'post': [login_required]} #reading reviews stays public

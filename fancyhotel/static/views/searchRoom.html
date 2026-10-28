@@ -54,7 +54,7 @@
             </div><!--Toggles the view of the form-->
             <div ng-show="hideForm">
                 <h1>Rooms available from {{checkIn | date:'yyyy-MM-dd'}} to {{checkOut | date: 'yyyy-MM-dd'}} in {{location}}:</h1>
-                <form ng-submit="bookRooms()">
+                <form ng-submit="bookRooms(selectedToken)">
                     <table style="width:100%">
                         <tr>
                             <th>Select Room</th>
@@ -81,15 +81,19 @@
                     </table>
                     <br />
                     <br />
-                    <b>Total cost:</b> <span> ${{total_cost}}</span> <a class="btn btn-primary" href="javascript:void(0);" ng-click="updateTotalCost()">Update total cost</a><br /><br />
-                    <b>Select credit card:</b> 
-                    <select ng-model="cardNumber" ng-required="isRequired" >
-                        <option ng-model="blank" ng-repeat="card in creditCards" value="{{creditCards[$index].card_number}}" >{{creditCards[$index].card_number}}
-                        </option>
-                    </select>
+                    <b>Estimated total cost:</b> <span> ${{total_cost}}</span> <a class="btn btn-primary" href="javascript:void(0);" ng-click="updateTotalCost()">Update total cost</a>
+                    <br /><small>The final price is calculated by the hotel when you book.</small><br /><br />
+                    <div ng-show="defaultCard">
+                        <button type="button" class="btn btn-primary" ng-click="bookRooms()">Reservar con tarjeta &bull;&bull;&bull;&bull; {{defaultCard.last4}}</button>
+                        <br /><br />
+                    </div>
+                    <div ng-show="creditCards.length > 0">
+                        <b>{{defaultCard ? 'Or pay with another saved card:' : 'Select credit card:'}}</b>
+                        <select ng-model="selectedToken" ng-options="card.token as ('•••• ' + card.last4 + ' (expires ' + card.expiration_date + ')') for card in creditCards"></select>
+                        <button type="submit" class="btn btn-default">Book with selected card</button>
+                    </div>
                     <br />
                     No credit card? Add one <a href="#/payment">here</a>.
-                    <button type="submit" class="btn btn-default">Book these rooms</button>
                 </form>
             </div> <!--available room selection div-->
             

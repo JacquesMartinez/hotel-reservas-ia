@@ -31,6 +31,7 @@ api.add_resource(restapi.UpdateReservationResource, '/api/reservation')
 api.add_resource(restapi.ReservationResource, '/api/reservation/<string:reservation_id>') #includes update_reservation
 api.add_resource(restapi.UpdateReservationConfirmResource, '/api/reservation/<string:reservation_id>/availability')
 api.add_resource(restapi.CreditCardResource, '/api/payment')
+api.add_resource(restapi.CreditCardDefaultResource, '/api/payment/default')
 api.add_resource(restapi.ReviewResource, '/api/review')
 api.add_resource(restapi.CancelReservationResource, '/api/reservation/<string:reservation_id>/cancel')
 api.add_resource(restapi.ReservationReportResource, '/api/reports/reservation')

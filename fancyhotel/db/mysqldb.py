@@ -1,4 +1,5 @@
 import os
+import secrets
 import mysql.connector
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -56,17 +57,35 @@ class MysqlManager(object):
 			cursor.execute('''ALTER TABLE Fancy_Hotel.Customer MODIFY password VARCHAR(255) NOT NULL;''')
 			cursor.execute('''ALTER TABLE Fancy_Hotel.Manager MODIFY password VARCHAR(255) NOT NULL;''')
 
+			#card_number keeps its name for the Reservation FK, but stores a server token, never the real number (D-02, D-08)
 			cursor.execute(
 				'''CREATE TABLE IF NOT EXISTS Fancy_Hotel.Credit_Card (
 				 	card_number char(16) NOT NULL,
 				 	name varchar(41) NOT NULL,
-				 	cvv char(3) NOT NULL,
 				 	expiration_date date NOT NULL,
 				 	username char(5) NOT NULL,
+				 	last4 CHAR(4) NOT NULL DEFAULT '',
+				 	is_default TINYINT(1) NOT NULL DEFAULT 0,
 				 	PRIMARY KEY (card_number),
 				 	FOREIGN KEY (username) REFERENCES Fancy_Hotel.Customer (username)
 				);'''
 			)
+
+			#old schema (real number + cvv): its cards can't become tokens, so they are deleted (Reservation.card_number is SET NULL)
+			#MySQL has no DROP COLUMN IF EXISTS, so check information_schema; without cvv this is a no-op on every start
+			cursor.execute(
+				'''SELECT COUNT(*) FROM information_schema.COLUMNS
+				WHERE TABLE_SCHEMA = 'Fancy_Hotel' AND TABLE_NAME = 'Credit_Card' AND COLUMN_NAME = 'cvv';'''
+			)
+			if cursor.fetchall()[0][0]:
+				cursor.execute('''DELETE FROM Fancy_Hotel.Credit_Card;''')
+				self.connection.commit()
+				cursor.execute(
+					'''ALTER TABLE Fancy_Hotel.Credit_Card
+					DROP COLUMN cvv,
+					ADD COLUMN last4 CHAR(4) NOT NULL DEFAULT '',
+					ADD COLUMN is_default TINYINT(1) NOT NULL DEFAULT 0;'''
+				)
 
 			cursor.execute(
 				'''CREATE TABLE IF NOT EXISTS Fancy_Hotel.Review (
@@ -244,6 +263,21 @@ class MysqlManager(object):
 
 			#>= DATE('2015-11-24') (the mock checkin date)
 			#DATE('2015-11-29') (the mock checkout date)
+		finally:
+			cursor.close()
+
+	def get_room_prices(self, location, room_number):
+		#returns (room_cost, extra_bed_price) from the database, or None if the room does not exist
+		cursor = self.connection.cursor()
+		try:
+			cursor.execute(
+				'''SELECT room_cost, extra_bed_price
+				FROM Fancy_Hotel.Room
+				WHERE location = %(location)s AND room_number = %(room_number)s''',
+				{'location': location, 'room_number': room_number}
+			)
+			rows = cursor.fetchall()
+			return rows[0] if rows else None
 		finally:
 			cursor.close()
 
@@ -463,64 +497,88 @@ class MysqlManager(object):
 		finally:
 			cursor.close()
 	
-	def add_credit_card(self, username, card_number, cvv, expiration_date, card_name):
+	def add_credit_card(self, username, last4, card_name, expiration_date, make_default):
+		#card_number stores a token generated here; the real number never reaches the database (D-08)
+		token = "tok_" + secrets.token_hex(6)
 		cursor = self.connection.cursor()
 		try:
+			if make_default:
+				cursor.execute(
+					'''UPDATE Fancy_Hotel.Credit_Card SET is_default = 0 WHERE username = %(username)s''',
+					{"username": username}
+				)
 			cursor.execute(
 				'''
 				INSERT INTO Fancy_Hotel.Credit_Card
-				(card_number, name, cvv, expiration_date, username)
-				VALUES (%(card_number)s, %(name)s, %(cvv)s, %(expiration_date)s, %(username)s)  
+				(card_number, name, expiration_date, username, last4, is_default)
+				VALUES (%(token)s, %(name)s, %(expiration_date)s, %(username)s, %(last4)s, %(is_default)s)
 				''',
-				{"card_number": card_number, "name": card_name, "cvv": cvv, "expiration_date": expiration_date, "username": username}
+				{"token": token, "name": card_name, "expiration_date": expiration_date, "username": username, "last4": last4, "is_default": 1 if make_default else 0}
 			)
-			
-			
-			if cursor.rowcount == 0:
-				return "Credit card creation failed", False
-			
-			self.connection.commit()	
-			return "Credit card successfully created", True
-			
+			self.connection.commit()
+			return {"token": token, "last4": last4, "name": card_name, "expiration_date": expiration_date, "is_default": bool(make_default)}
 		finally:
 			cursor.close()
-			
-	def get_credit_cards(self, username):
+
+	def get_credit_cards(self, username, token=None):
+		#with a token, returns at most that card, and only if it belongs to the user
 		cursor = self.connection.cursor()
 		try:
 			cursor.execute(
 				'''
-				SELECT * From Fancy_Hotel.Credit_Card
-				WHERE username = %(username)s
+				SELECT card_number, last4, name, expiration_date, is_default
+				FROM Fancy_Hotel.Credit_Card
+				WHERE username = %(username)s AND (%(token)s IS NULL OR card_number = %(token)s)
 				''',
-				{'username': username}
+				{'username': username, 'token': token}
 			)
 			rows = cursor.fetchall()
 			cards = []
-			for card_number, name, cvv, expiration_date, username in rows:
+			for card_number, last4, name, expiration_date, is_default in rows:
 				cards.append(
 					{
-						"card_number": card_number,
+						"token": card_number,
+						"last4": last4,
 						"name": name,
-						"cvv": cvv, 
 						"expiration_date": str(expiration_date),
-						"username": username
+						"is_default": bool(is_default)
 					}
 				)
-			
+
 			return cards
 		finally:
 			cursor.close()
-	
-	def delete_credit_card(self, username, card_number):
+
+	def get_credit_card(self, username, token):
+		cards = self.get_credit_cards(username, token)
+		return cards[0] if cards else None
+
+	def set_default_credit_card(self, username, token):
+		#returns False when the token is not one of the user's cards; otherwise only that card stays as default
+		if not self.get_credit_card(username, token):
+			return False
+		cursor = self.connection.cursor()
+		try:
+			cursor.execute(
+				'''UPDATE Fancy_Hotel.Credit_Card
+				SET is_default = (card_number = %(token)s)
+				WHERE username = %(username)s''',
+				{"token": token, "username": username}
+			)
+			self.connection.commit()
+			return True
+		finally:
+			cursor.close()
+
+	def delete_credit_card(self, username, token):
 		cursor = self.connection.cursor()
 		try:
 			cursor.execute(
 				'''
 				DELETE FROM Fancy_Hotel.Credit_Card
-				WHERE card_number = %(card_number)s AND username = %(username)s  
+				WHERE card_number = %(card_number)s AND username = %(username)s
 				''',
-				{"card_number": card_number, "username": username}
+				{"card_number": token, "username": username}
 			)
 			if cursor.rowcount == 0:
 				return "This credit card was not found", False

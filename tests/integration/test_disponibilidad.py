@@ -57,6 +57,19 @@ def ejecutar(sql, params=()):
         cur.close()
 
 
+def columnas_credit_card():
+    conexion = db.mysqldb.connection
+    cur = conexion.cursor()
+    try:
+        cur.execute("""SELECT COLUMN_NAME FROM information_schema.COLUMNS
+                       WHERE TABLE_SCHEMA = 'Fancy_Hotel' AND TABLE_NAME = 'Credit_Card'""")
+        columnas = {f[0].lower() for f in cur.fetchall()}
+        conexion.commit()
+        return columnas
+    finally:
+        cur.close()
+
+
 def limpiar():
     ejecutar("""DELETE b FROM Fancy_Hotel.Reserves_Extra_Bed b
                 WHERE b.location = %s""", (SEDE,))
@@ -90,9 +103,14 @@ def escenario():
     ejecutar("""INSERT INTO Fancy_Hotel.Room
                 (location, room_number, type, room_cost, capacity, extra_bed_price)
                 VALUES (%s, %s, %s, 250, 4, 50)""", (SEDE, HABITACION, TIPO))
-    ejecutar("""INSERT INTO Fancy_Hotel.Credit_Card (card_number, name, cvv, expiration_date, username)
-                VALUES (%s, 'Test Pruebas', '123', %s, %s)""",
-             (TARJETA, date.today() + timedelta(days=3 * 365), CLIENTE))
+    vence = date.today() + timedelta(days=3 * 365)
+    if "cvv" in columnas_credit_card():   # esquema anterior a la HU de pago guardado
+        ejecutar("""INSERT INTO Fancy_Hotel.Credit_Card (card_number, name, cvv, expiration_date, username)
+                    VALUES (%s, 'Test Pruebas', '123', %s, %s)""", (TARJETA, vence, CLIENTE))
+    else:                                 # esquema nuevo: card_number guarda un token
+        ejecutar("""INSERT INTO Fancy_Hotel.Credit_Card
+                    (card_number, name, expiration_date, username, last4, is_default)
+                    VALUES (%s, 'Test Pruebas', %s, %s, '9901', 1)""", (TARJETA, vence, CLIENTE))
     crear_reserva(10, 13)
     yield
     limpiar()
@@ -188,7 +206,8 @@ def test_crear_reserva_sobre_fechas_ocupadas_responde_409(escenario, cliente_htt
         "username": CLIENTE,
         "checkIn": iso(11),
         "checkOut": iso(14),
-        "card_number": TARJETA,
+        "card_number": TARJETA,   # contrato anterior
+        "card_token": TARJETA,    # contrato de la HU de pago guardado
         "rooms": [{"location": SEDE, "room_number": HABITACION, "cost": 250,
                    "extra_bed_price": 50, "extra_bed_or_not": 0}],
     })

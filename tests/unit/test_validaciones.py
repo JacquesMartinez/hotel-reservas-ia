@@ -17,7 +17,7 @@ def client(client):
 def create(client, checkIn='2030-01-01', checkOut='2030-01-03', rooms=None):
 	return client.post('/api/reservation/create', json={
 		'username': 'Cl3a8', 'checkIn': checkIn, 'checkOut': checkOut,
-		'card_number': '4111111111111111', 'rooms': [ROOM] if rooms is None else rooms})
+		'card_token': 'tok_5eed00000001', 'rooms': [ROOM] if rooms is None else rooms})
 
 
 @pytest.mark.parametrize('checkIn, checkOut', [
@@ -52,11 +52,14 @@ def test_create_reservation_rejects_taken_room(client, mysqldb):
 
 
 def test_create_reservation_valid(client, mysqldb):
+	#the total uses the database price (150), not the cost sent in ROOM (100)
+	mysqldb.get_credit_card.return_value = {'token': 'tok_5eed00000001'}
+	mysqldb.get_room_prices.return_value = (150, 20)
 	mysqldb.is_room_free.return_value = True
 	mysqldb.insert_reservation.return_value = (7, 'Successfully created reservation', True)
 	response = create(client)
 	assert response.status_code == 200
-	mysqldb.insert_reservation.assert_called_once_with('Cl3a8', '2030-01-01', '2030-01-03', '4111111111111111', [ROOM], 200)
+	mysqldb.insert_reservation.assert_called_once_with('Cl3a8', '2030-01-01', '2030-01-03', 'tok_5eed00000001', [ROOM], 300)
 
 
 @pytest.mark.parametrize('checkIn, checkOut', [('2030-01-01', '2030-01-01'), ('2030-13-01', '2030-13-03')])

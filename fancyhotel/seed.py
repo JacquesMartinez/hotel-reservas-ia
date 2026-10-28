@@ -37,12 +37,12 @@ MANAGERS = {
 	'M2acz': 'manager123',
 }
 
-#username: (card_number, name, cvv, expiration_date) -- standard test numbers, not real cards
+#username: (token, name, last4, expiration_date) -- fixed tokens so reservations can point to them; each is the user's default (D-08)
 CREDIT_CARDS = {
-	'Cl3a8': ('4111111111111111', 'Laura Gomez', '123', date(2029, 12, 31)),
-	'Cyp7d': ('5555555555554444', 'Pedro Ramirez', '456', date(2028, 6, 30)),
-	'C196b': ('4012888888881881', 'Sofia Torres', '789', date(2030, 3, 31)),
-	'Cm2wd': ('5105105105105100', 'Diego Morales', '321', date(2029, 9, 30)),
+	'Cl3a8': ('tok_5eed00000001', 'Laura Gomez', '1111', date(2029, 12, 31)),
+	'Cyp7d': ('tok_5eed00000002', 'Pedro Ramirez', '4444', date(2028, 6, 30)),
+	'C196b': ('tok_5eed00000003', 'Sofia Torres', '1881', date(2030, 3, 31)),
+	'Cm2wd': ('tok_5eed00000004', 'Diego Morales', '5100', date(2029, 9, 30)),
 }
 
 HISTORY_DAYS = 365
@@ -111,8 +111,8 @@ def seed():
 		)
 
 		cursor.executemany(
-			'''INSERT INTO Fancy_Hotel.Credit_Card (card_number, name, cvv, expiration_date, username)
-			VALUES (%s, %s, %s, %s, %s)''',
+			'''INSERT INTO Fancy_Hotel.Credit_Card (card_number, name, last4, expiration_date, username, is_default)
+			VALUES (%s, %s, %s, %s, %s, 1)''',
 			[card + (username,) for username, card in CREDIT_CARDS.items()]
 		)
 

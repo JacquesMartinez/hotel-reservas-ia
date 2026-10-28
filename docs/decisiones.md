@@ -22,9 +22,9 @@
 - **Fecha / Issue:** 2026-10-28 / HU Reserva con datos guardados
 - **Contexto:** La tabla `Credit_Card` guarda el número completo (PAN) y el CVV en texto plano, y la API devuelve el CVV (S2). Guardar el CVV está prohibido por PCI DSS.
 - **Propuesta de la IA:** Tokenizar con una pasarela de pago y guardar token, últimos 4 dígitos, marca y vencimiento; agregar una tabla `Payment`.
-- **Decisión del equipo:** Guardar solo un **token simulado**, los últimos 4 dígitos y el vencimiento. No integrar una pasarela real. [Decidir si se agrega la tabla `Payment` o se deja fuera de alcance.]
+- **Decisión del equipo:** Guardar solo un **token simulado**, los últimos 4 dígitos y el vencimiento. No integrar una pasarela real. No se agrega la tabla `Payment` (ver D-08).
 - **Justificación:** Cumple el objetivo de la historia sin manejar datos sensibles. Una pasarela real queda fuera del alcance del proyecto.
-- **Rechazado de la IA (si aplica):** Integración con pasarela real. [Completar según lo que se decida sobre la tabla `Payment`.]
+- **Rechazado de la IA (si aplica):** Integración con pasarela real y tabla `Payment` (ver D-08).
 
 ## D-03: Historias de usuario adicionales elegidas
 - **Fecha / Issue:** 2026-10-28 / Backlog
@@ -66,23 +66,15 @@
 - **Justificación:** Tener datos de prueba reproducibles facilita probar los permisos por rol sin crear usuarios a mano.
 - **Rechazado de la IA (si aplica):** No aplica.
 
-## D-08: Gestión de configuración con `.env`
-- **Fecha / Issue:** 2026-10-28 / #___
-- **Contexto:** Las credenciales y la configuración sensible no deben estar en el código ni subirse al repositorio.
-- **Propuesta de la IA:** Agregar `python-dotenv`, `.env.example` y un `.gitignore` que excluya `.env`.
-- **Decisión del equipo:** Aceptada en su totalidad.
-- **Justificación:** Mantiene los secretos fuera del control de versiones y documenta qué variables necesita el proyecto.
-- **Rechazado de la IA (si aplica):** No aplica.
+## D-08: Esquema de `Credit_Card` para el pago guardado
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** D-02 define qué se guarda, pero no cómo cambia el esquema. `Reservation.card_number` es FK hacia `Credit_Card.card_number`.
+- **Propuesta de la IA:** agregar una tabla `Payment` (ver D-02).
+- **Decisión del equipo:** reutilizar `Credit_Card`. `card_number` guarda un token generado por el servidor (`tok_` + 12 caracteres hexadecimales con `secrets`). Se elimina `cvv` y se agregan `last4 CHAR(4)` e `is_default TINYINT(1)` (una sola tarjeta predeterminada por usuario). La migración de `init_db` se ejecuta en cada arranque: si todavía existe `cvv`, borra las tarjetas existentes, elimina esa columna y agrega las nuevas.
+- **Justificación:** conservar el nombre de la columna evita cambiar la FK de `Reservation`. Las tarjetas anteriores guardan el número real y no se pueden convertir en token.
+- **Rechazado de la IA (si aplica):** la tabla `Payment`.
 
 # Decisiones tomadas por humanos
-
-## D-08: Rama de trabajo para el issue
-- **Fecha / Issue:** 2026-10-28 / #4
-- **Contexto:** `main` tenía cambios sin commitear (la reorganización de `tests/` y `pytest.ini`). La rama `feature/calendario-disponibilidad` era anterior a la migración a Python 3.
-- **Propuesta de la IA:** trabajar en el árbol actual sin ramas, o recrear la rama desde `main`.
-- **Decisión del equipo:** usar `feature/calendario-disponibilidad`, actualizada desde `main`, sin commits.
-- **Justificación:** aislar el trabajo del issue. La rama no tenía commits propios ni existía en el remoto.
-- **Rechazado de la IA (si aplica):** trabajar directamente en `main`.
 
 ## D-09: El parámetro `to` es inclusivo
 - **Fecha / Issue:** 2026-10-28 / #4
@@ -163,3 +155,75 @@
 - **Decisión del equipo:** aprobado, cambiando solo esa línea del docstring.
 - **Justificación:** la documentación debe reflejar la ruta actual. No afecta al código de las pruebas.
 - **Rechazado de la IA (si aplica):** —
+
+## D-19: No migrar las contraseñas existentes
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** con el hash, los usuarios que ya existían con la clave en texto plano no pueden iniciar sesión.
+- **Propuesta de la IA:** no agregar una migración, porque el issue no la pide, y volver a ejecutar `seed.py`. Ofreció hacer la migración si se quería.
+- **Decisión del equipo:** sin migración. Se vuelve a ejecutar `seed.py`.
+- **Justificación:** solo hay datos de desarrollo y la migración está fuera del issue.
+- **Rechazado de la IA (si aplica):** la migración opcional.
+
+## D-20: SECRET_KEY obligatoria y generada en el .env local
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** sin `SECRET_KEY` no se puede abrir la sesión, y el issue prohíbe una clave fija de respaldo.
+- **Propuesta de la IA:** lanzar `RuntimeError` si falta, dejar `SECRET_KEY=` vacía en `.env.example` con el comando para generarla y agregar una clave aleatoria al `.env` local.
+- **Decisión del equipo:** aprobado, incluido que la IA genere la clave local.
+- **Justificación:** evita arrancar con una clave insegura. El `.env` no se versiona y no hay CI que se rompa.
+- **Rechazado de la IA (si aplica):** —
+
+## D-21: Ajustar las pruebas unitarias al nuevo contrato
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** login ahora devuelve un rol, y los endpoints de reservas exigen sesión.
+- **Propuesta de la IA:** en `test_app.py`, cambiar el retorno simulado de login de `True` a `"customer"`. En `test_validaciones.py`, agregar un fixture `client(client)` que abre sesión como Cl3a8 / customer, sin tocar `conftest.py`.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** el issue permite ajustar las pruebas unitarias si el contrato cambia. Las aserciones y los payloads no cambian.
+- **Rechazado de la IA (si aplica):** —
+
+## D-22: Guardar el username en la sesión tal como se escribe
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** al aceptar el prefijo en minúscula, quien entra como `cl3a8` queda en la sesión con ese nombre y no como `Cl3a8`.
+- **Propuesta de la IA:** dejarlo así, porque login solo debe devolver el rol y la collation de MySQL no distingue mayúsculas.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** las consultas funcionan igual. Normalizar el nombre está fuera del contrato del issue.
+- **Rechazado de la IA (si aplica):** —
+
+## D-23: login_required no distingue roles
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** un manager con sesión puede llamar a endpoints de cliente, y la FK hacia Customer falla con 500 (B14).
+- **Propuesta de la IA:** exigir solo sesión, como pide el issue, y registrarlo como observación.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** el issue solo pide exigir sesión en esos endpoints. B14 ya está registrado.
+- **Rechazado de la IA (si aplica):** —
+
+## D-24: El frontend sigue enviando username
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** el servidor ahora ignora el username de la petición.
+- **Propuesta de la IA:** no quitarlo del frontend, porque no rompe nada.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** el issue pide un frontend mínimo.
+- **Rechazado de la IA (si aplica):** —
+
+## D-25: Enlace de salida en el layout general
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** no existía ningún botón ni enlace para salir.
+- **Propuesta de la IA:** un enlace "Log out" en `index.html`, visible solo con sesión, para que aparezca en todas las vistas.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** es el cambio mínimo que cubre todas las vistas.
+- **Rechazado de la IA (si aplica):** —
+
+## D-26: Gestión de configuración con `.env` (antes D-08)
+- **Fecha / Issue:** 2026-10-28 / #___
+- **Contexto:** Las credenciales y la configuración sensible no deben estar en el código ni subirse al repositorio.
+- **Propuesta de la IA:** Agregar `python-dotenv`, `.env.example` y un `.gitignore` que excluya `.env`.
+- **Decisión del equipo:** Aceptada en su totalidad.
+- **Justificación:** Mantiene los secretos fuera del control de versiones y documenta qué variables necesita el proyecto.
+- **Rechazado de la IA (si aplica):** No aplica.
+
+## D-27: Rama de trabajo para el issue (antes D-08)
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Contexto:** `main` tenía cambios sin commitear (la reorganización de `tests/` y `pytest.ini`). La rama `feature/calendario-disponibilidad` era anterior a la migración a Python 3.
+- **Propuesta de la IA:** trabajar en el árbol actual sin ramas, o recrear la rama desde `main`.
+- **Decisión del equipo:** usar `feature/calendario-disponibilidad`, actualizada desde `main`, sin commits.
+- **Justificación:** aislar el trabajo del issue. La rama no tenía commits propios ni existía en el remoto.
+- **Rechazado de la IA (si aplica):** trabajar directamente en `main`.

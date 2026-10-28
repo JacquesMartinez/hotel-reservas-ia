@@ -3,6 +3,17 @@ import db #instantiates the database so we don't have to do that in here
 from datetime import datetime
 
 
+def validate_stay(checkIn, checkOut):
+	#returns (nights, None) or (None, error response) for malformed dates or less than one night
+	try:
+		checkInDate = datetime.strptime(checkIn, "%Y-%m-%d")
+		checkOutDate = datetime.strptime(checkOut, "%Y-%m-%d")
+	except ValueError:
+		return None, ({"message": "Dates must use the format YYYY-MM-DD", "result": False}, 400)
+	nights = (checkOutDate - checkInDate).days
+	if nights < 1:
+		return None, ({"message": "The check-out must be at least one night after the check-in", "result": False}, 400)
+	return nights, None
 
 #every method of a class has to have (self)
 class NewUserRegistrationResource(Resource):
@@ -63,14 +74,9 @@ class CreateReservationResource(Resource):
 		json_body = request.json
 
 		#reject malformed requests before touching the database
-		try:
-			checkInDate = datetime.strptime(args["checkIn"], "%Y-%m-%d")
-			checkOutDate = datetime.strptime(args["checkOut"], "%Y-%m-%d")
-		except ValueError:
-			return {"message": "Dates must use the format YYYY-MM-DD", "result": False}, 400
-		deltaDays = (checkOutDate - checkInDate).days
-		if deltaDays < 1:
-			return {"message": "The check-out must be at least one night after the check-in", "result": False}, 400
+		deltaDays, error = validate_stay(args["checkIn"], args["checkOut"])
+		if error:
+			return error
 		required_keys = ('location', 'room_number', 'cost', 'extra_bed_or_not')
 		for room in json_body['rooms']:
 			if not isinstance(room, dict) or any(room.get(key) in (None, '') for key in required_keys):
@@ -106,11 +112,11 @@ class UpdateReservationResource(Resource):
 	
 	def put(self):
 		args = self.reqparse.parse_args()
-		 
+		deltaDays, error = validate_stay(args["checkIn"], args["checkOut"])
+		if error:
+			return error
+
 		total_cost = 0
-		checkInDate = datetime.strptime(args["checkIn"], "%Y-%m-%d")
-		checkOutDate = datetime.strptime(args["checkOut"], "%Y-%m-%d")
-		deltaDays = (checkOutDate - checkInDate).days
 		print(deltaDays)
 		rooms = db.mysqldb.get_rooms_for_reservation(args['username'], args['reservation_id'])
 		for room in rooms:
@@ -179,6 +185,9 @@ class UpdateReservationConfirmResource(Resource):
 
 	def get(self, reservation_id):
 		args  = self.reqparse.parse_args()
+		nights, error = validate_stay(args['checkIn'], args['checkOut'])
+		if error:
+			return error
 		rooms = db.mysqldb.get_rooms_for_reservation(args['username'], reservation_id)
 		for room in rooms:
 			if not db.mysqldb.is_room_free(room['room_number'], room['location'], args['checkIn'], args['checkOut'], reservation_id):

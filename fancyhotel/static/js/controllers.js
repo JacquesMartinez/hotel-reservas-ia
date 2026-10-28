@@ -277,17 +277,29 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 	$("#newEndDate").datetimepicker(
 		{
 			format: 'YYYY-MM-DD',
+			minDate: moment().add(1, 'd').startOf('day'),
+			useCurrent: false //keeps the field empty instead of filling it with the minDate
 		}
 	);
-	
+
 	$('#newStartDate').on("dp.change", function (e) {
 		console.log(e);
-		$('#newEndDate').data("DateTimePicker").minDate(e.date);
+		//at least one night
+		$('#newEndDate').data("DateTimePicker").minDate(e.date ? e.date.clone().add(1, 'd').startOf('day') : moment().add(1, 'd').startOf('day'));
 	});
 
 	$('#newEndDate').on("dp.change", function (e) {
-		$('#newStartDate').data("DateTimePicker").maxDate(e.date);
+		$('#newStartDate').data("DateTimePicker").maxDate(e.date ? e.date.clone().subtract(1, 'd').endOf('day') : false);
 	});
+
+	//the server's reason for a failed request; reqparse errors come as {"field": "help"}
+	function errorMessage(errorData, fallback){
+		var message = errorData.data && errorData.data.message;
+		if(message && typeof message === 'object'){
+			message = Object.keys(message).map(function(key){ return message[key]; }).join(' ');
+		}
+		return message || fallback;
+	}
 					
 	$scope.loggedInBool = $rootScope.alreadyLoggedIn();
 	$scope.viewPart1 = true; //these views are for the update page
@@ -416,6 +428,7 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 		if($scope.creditCards=='' || $scope.creditCards.length==0){
 			console.log("credit card info required");
 			window.alert("Please select a credit card for payment. If you have no credit card, please add one first.");
+			return;
 		}
 		var cardExpireDate;
 		var currentCard = $scope.cardNumber;
@@ -477,6 +490,7 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 		if(rooms.length==0){
 			window.alert("You must select some room(s) in order to make a reservation.");
 			console.log("no rooms selected");
+			return;
 		}
 
 		var make_response = reservationFactory.MakeReservation(
@@ -497,13 +511,7 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 		function(errorData)
 		{
 			//400 (invalid data) or 409 (rooms no longer free): show the server's reason
-			var message = errorData.data && errorData.data.message;
-			if(message && typeof message === 'object'){ //reqparse errors come as {"field": "help"}
-				message = Object.keys(message).map(function(key){ return message[key]; }).join(' ');
-			}
-			if(!message){
-				message = "The reservation could not be created. Please check the data and try again.";
-			}
+			var message = errorMessage(errorData, "The reservation could not be created. Please check the data and try again.");
 			console.log(message);
 			window.alert(message);
 		});
@@ -557,7 +565,8 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 		},
 		function(errorData)
 		{
-			window.alert("Sorry, but your selected rooms are not available for your newly selected dates.");
+			//invalid dates or rooms not free: show the server's reason
+			window.alert(errorMessage(errorData, "Sorry, but your selected rooms are not available for your newly selected dates."));
 		});
 
 	};
@@ -584,6 +593,9 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 		//handle promise
 		updateReservationResponse.$promise.then(function(data){
 			$window.location.href = "#/portal";
+		},
+		function(errorData){
+			window.alert(errorMessage(errorData, "The reservation could not be updated. Please check the dates and try again."));
 		});
 	};
 

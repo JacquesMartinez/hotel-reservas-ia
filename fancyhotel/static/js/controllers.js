@@ -27,6 +27,10 @@ resourceModule.factory('reportFactory', function($resource){
 			RevenueReport: {
 				method: 'GET',
 				url: '/api/reports/revenue'
+			},
+			Forecast: {
+				method: 'GET',
+				url: '/api/reports/forecast'
 			}
 	})
 })
@@ -691,24 +695,165 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 		}
 	}
 
+	//reservation and revenue reports use "YYYY-MM" keys; getMonth stays for the popular room report
+	$scope.formatMonth = function(key){
+		return moment(key, 'YYYY-MM').format('MMMM YYYY');
+	}
 
-	reservationReportResponse = reportFactory.ResReport(); 
-	reservationReportResponse.$promise.then(function(data){
-		$scope.resReport=data;
-	});
+	//$resource adds $promise and $resolved to the object, so only the other keys are data
+	$scope.hasData = function(report){
+		return Object.keys(report || {}).some(function(key){ return key.charAt(0) != '$'; });
+	}
 
-	popCatReportResponse = reportFactory.PopularRoomCatReport(); 
+	//default range: from the first day of the month 11 months ago up to today
+	var today = new Date();
+	$scope.range = {
+		from: new Date(today.getFullYear(), today.getMonth() - 11, 1),
+		to: new Date(today.getFullYear(), today.getMonth(), today.getDate())
+	};
+
+	$scope.loadReports = function(){
+		if(!$scope.range.from || !$scope.range.to){
+			window.alert("Please choose both dates");
+			return;
+		}
+		var params = {from: moment($scope.range.from).format('YYYY-MM-DD'), to: moment($scope.range.to).format('YYYY-MM-DD')};
+		var showError = function(response){
+			if(response.status == 400){
+				window.alert(response.data.message);
+			}
+		};
+		reportFactory.ResReport(params).$promise.then(function(data){
+			$scope.resReport=data;
+		}, showError);
+		reportFactory.RevenueReport(params).$promise.then(function(data){
+			$scope.revenueReport=data;
+		}, showError);
+	}
+	$scope.loadReports();
+
+	popCatReportResponse = reportFactory.PopularRoomCatReport();
 	popCatReportResponse.$promise.then(function(data){
 		$scope.popCatReport=data;
 	});
 
-	revenueReportResponse = reportFactory.RevenueReport(); 
-	revenueReportResponse.$promise.then(function(data){
-		$scope.revenueReport=data;
+
+
+})
+
+.controller('forecastController', function($rootScope, $scope, reportFactory){
+	$scope.loggedInBool = $rootScope.alreadyLoggedIn();
+	$scope.location = 'Atlanta';
+	$scope.forecast = null;
+	var chart = null;
+
+	$scope.formatWeek = function(isoDate){
+		return moment(isoDate, 'YYYY-MM-DD').format('MMM D, YYYY');
+	}
+
+	$scope.priceLabel = function(pct){
+		if(pct > 0){
+			return '+' + pct + ' %';
+		}
+		if(pct < 0){
+			return pct + ' %';
+		}
+		return 'No change';
+	}
+
+	$scope.loadForecast = function(){
+		reportFactory.Forecast({location: $scope.location}).$promise.then(function(data){
+			$scope.forecast = data;
+			drawChart(data);
+		}, function(response){
+			if(response.status == 400){
+				window.alert(response.data.message);
+			}
+		});
+	}
+
+	function drawChart(data){
+		var history = data.history;
+		var forecast = data.forecast;
+		var toPct = function(week){ return Math.round(week.occupancy * 1000) / 10; };
+		var empty = function(){ return null; };
+
+		//the current week is in progress: it sits between both series with no value
+		var currentWeek = moment(forecast[0].week_start, 'YYYY-MM-DD').subtract(7, 'days').format('YYYY-MM-DD');
+		var weeks = history.map(function(w){ return w.week_start; }).concat([currentWeek], forecast.map(function(w){ return w.week_start; }));
+		var historySeries = history.map(toPct).concat([null], forecast.map(empty));
+		var forecastSeries = history.map(empty).concat([null], forecast.map(toPct));
+		var joinIndex = history.length - 1;
+		forecastSeries[joinIndex] = historySeries[joinIndex]; //the dashed line starts at the last real week so both lines join
+
+		if(chart){
+			chart.destroy();
+		}
+		chart = new Chart(document.getElementById('forecastChart'), {
+			type: 'line',
+			data: {
+				labels: weeks.map(function(w){ return moment(w, 'YYYY-MM-DD').format('MMM D'); }),
+				datasets: [{
+					label: 'History',
+					data: historySeries,
+					borderColor: '#2a78d6',
+					backgroundColor: '#2a78d6',
+					borderWidth: 2,
+					pointRadius: 4,
+					pointHoverRadius: 6
+				}, {
+					label: 'Forecast',
+					data: forecastSeries,
+					borderColor: '#eb6834',
+					backgroundColor: '#eb6834',
+					borderWidth: 2,
+					borderDash: [6, 4],
+					spanGaps: true,
+					pointRadius: function(context){ return context.dataIndex == joinIndex ? 0 : 4; },
+					pointHoverRadius: 6
+				}]
+			},
+			options: {
+				maintainAspectRatio: false,
+				interaction: {mode: 'index', intersect: false},
+				scales: {
+					y: {
+						min: 0,
+						max: 100,
+						title: {display: true, text: 'Occupancy', color: '#52514e'},
+						ticks: {color: '#52514e', callback: function(value){ return value + ' %'; }},
+						grid: {color: '#e8e8e5'}
+					},
+					x: {
+						title: {display: true, text: 'Week starting (Monday)', color: '#52514e'},
+						ticks: {color: '#52514e'},
+						grid: {display: false}
+					}
+				},
+				plugins: {
+					legend: {position: 'top', labels: {color: '#0b0b0b'}},
+					tooltip: {
+						//the join point and the current week have no forecast/history of their own
+						filter: function(item){ return item.raw !== null && !(item.datasetIndex == 1 && item.dataIndex == joinIndex); },
+						callbacks: {
+							title: function(items){ return 'Week of ' + moment(weeks[items[0].dataIndex], 'YYYY-MM-DD').format('MMM D, YYYY'); },
+							label: function(item){ return item.dataset.label + ': ' + item.formattedValue + ' %'; }
+						}
+					}
+				}
+			}
+		});
+	}
+
+	$scope.$on('$destroy', function(){
+		if(chart){
+			chart.destroy();
+		}
 	});
 
-
-
+	if($rootScope.userType == 'manager'){
+		$scope.loadForecast();
+	}
 })
 
 
@@ -879,6 +1024,10 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 	.when('/revenueReport', {
 		templateUrl: 'static/views/revenueReport.html',
 		controller: 'reportController'
+	})
+	.when('/forecastReport', {
+		templateUrl: 'static/views/forecastReport.html',
+		controller: 'forecastController'
 	})
 	.when('/provideFeedback', {
 		templateUrl: 'static/views/writeReview.html',

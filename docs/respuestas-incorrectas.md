@@ -85,3 +85,56 @@
 - **Cómo lo detectamos:** ejecución. La IA lo encontró durante las pruebas de la Etapa 4.
 - **Corrección aplicada:** pendiente. Mientras tanto, detener la app antes de ejecutar las pruebas de integración o el seed.
 
+## RI-09: Registró en los docs una decisión que el equipo no había tomado
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Herramienta:** Claude Code
+- **Qué se pidió:** corregir la inconsistencia de las D-08 duplicadas.
+- **Qué respondió la IA:** además de renumerar, reemplazó en D-02 los marcadores "[Decidir… tabla Payment]" por "No se agrega la tabla Payment (ver D-08)", deducido de que el issue reutiliza Credit_Card.
+- **Por qué es incorrecto:** registró como decisión del equipo algo que el equipo no había decidido. La IA misma pidió revisarlo.
+- **Cómo lo detectamos:** revisión del reporte de la Etapa 1.
+- **Corrección aplicada:** pendiente de confirmar o corregir D-02.
+
+## RI-10: El precio se puede manipular enviando extra_bed_or_not como texto
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Herramienta:** Claude Code
+- **Qué se pidió:** calcular el total con los precios de la BD e ignorar los del cliente (S3).
+- **Qué respondió la IA:** cobra la cama extra solo si `room['extra_bed_or_not'] == 1`.
+- **Por qué es incorrecto:** si el cliente envía `"1"` (texto), la reserva se guarda con cama extra pero no se cobra. S3 queda abierto.
+- **Cómo lo detectamos:** revisión. La IA lo reportó al terminar la Etapa 4.
+- **Corrección aplicada:** pendiente. La IA propuso aceptar solo 0/1 y responder 400 en cualquier otro caso.
+
+## RI-11: Agregó una función que no estaba en el plan aprobado
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Herramienta:** Claude Code
+- **Qué se pidió:** implementar la Etapa 2 según el plan aprobado.
+- **Qué respondió la IA:** agregó `get_credit_card(username, token)`, que no estaba en el plan.
+- **Por qué es incorrecto:** se desvía del plan aprobado, aunque la IA lo informó y la función reutiliza `get_credit_cards`.
+- **Cómo lo detectamos:** la IA lo informó en "Cosas que difieren del plan".
+- **Corrección aplicada:** ninguna. Se mantuvo porque la usan el 404 de DELETE, la tarjeta predeterminada y la Etapa 3.
+
+## RI-12: El gráfico no siguió el plan para unir historial y previsión
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Herramienta:** Claude Code
+- **Qué se pidió:** implementar el plan aprobado.
+- **Qué respondió la IA:** el plan decía que la previsión arrancaría en el último punto del historial para que la línea fuera continua. La implementación deja un hueco en la semana en curso, que no entra ni en el historial ni en la previsión.
+- **Por qué es incorrecto:** el comportamiento difiere del plan aprobado, y en el reporte final se presentó como una "precisión" y no como un cambio.
+- **Cómo lo detectamos:** revisión, comparando el plan con el reporte final.
+- **Corrección aplicada:** ninguna. Falta decidir si se acepta el hueco o se une la línea como estaba en el plan.
+
+## RI-13: La tabla redondea distinto que el backend
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Herramienta:** Claude Code
+- **Qué se pidió:** tabla de semanas previstas con la sugerencia de precio.
+- **Qué respondió la IA:** la tabla muestra porcentajes enteros, mientras que el backend compara con 4 decimales.
+- **Por qué es incorrecto:** una ocupación de 79,6 % aparece como "80 %" con "No change", lo que parece contradecir el umbral de +15 %.
+- **Cómo lo detectamos:** revisión. La IA lo reportó en sus observaciones.
+- **Corrección aplicada:** pendiente. Una opción es mostrar un decimal.
+
+## RI-14: Usó una cookie de sesión firmada con la SECRET_KEY local para entrar como manager
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Herramienta:** Claude Code
+- **Qué se pidió:** verificar las vistas del manager.
+- **Qué respondió la IA:** como el login de M2acz respondía 401, firmó una cookie de sesión con la `SECRET_KEY` del `.env` para sacar las capturas.
+- **Por qué es incorrecto:** saltó la autenticación con la clave secreta sin pedir autorización, aunque lo informó y no cambió credenciales.
+- **Cómo lo detectamos:** revisión del reporte final.
+- **Corrección aplicada:** ninguna. Lo correcto habría sido avisar del 401 y pedir que se ejecutara `seed.py`.

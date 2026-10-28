@@ -227,3 +227,107 @@
 - **Decisión del equipo:** usar `feature/calendario-disponibilidad`, actualizada desde `main`, sin commits.
 - **Justificación:** aislar el trabajo del issue. La rama no tenía commits propios ni existía en el remoto.
 - **Rechazado de la IA (si aplica):** trabajar directamente en `main`.
+
+## D-28: Borrar las tarjetas existentes al migrar el esquema
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** las tarjetas guardadas tenían el número real y el CVV, y no se pueden convertir en tokens.
+- **Propuesta de la IA:** si existe la columna `cvv`, borrar todas las tarjetas y aplicar un solo `ALTER TABLE`. Avisó que se borrarían las 4 tarjetas locales y que 1152 reservas quedarían con `card_number = NULL`.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** el issue lo pide, y no se deben conservar números reales ni CVV.
+- **Rechazado de la IA (si aplica):** —
+
+## D-29: Arreglar seed.py en la Etapa 2 con tokens fijos
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** `seed.py` insertaba `cvv` y números reales, lo que se rompe con el esquema nuevo.
+- **Propuesta de la IA:** arreglarlo en la Etapa 2 con tokens fijos (`tok_5eed0000000N`) para que `test_seed.py` siga pasando, o dejarlo como observación.
+- **Decisión del equipo:** arreglarlo en la Etapa 2.
+- **Justificación:** el issue causa la falla, así que se corrige dentro de él.
+- **Rechazado de la IA (si aplica):** dejarlo como observación.
+
+## D-30: Corregir la numeración duplicada de decisiones
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** `docs/decisiones.md` tenía dos D-08 (.env y rama de trabajo), mientras que el docstring de `test_pago_guardado.py` cita D-08 como el contrato del esquema de pago.
+- **Propuesta de la IA:** solo avisar, sin tocar los docs.
+- **Decisión del equipo:** corregirlo. D-08 pasa a ser el esquema de Credit_Card, y las anteriores pasan a D-26 (.env) y D-27 (rama de trabajo).
+- **Justificación:** la documentación debe coincidir con lo que citan las pruebas.
+- **Rechazado de la IA (si aplica):** no tocar los docs.
+
+## D-31: La primera tarjeta no queda como predeterminada automáticamente
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** el issue no define qué pasa con la primera tarjeta si el usuario no marca la casilla.
+- **Propuesta de la IA:** ceñirse al issue y no marcarla automáticamente.
+- **Decisión del equipo:** aprobado al confirmar la Etapa 2.
+- **Justificación:** no agregar comportamiento que el issue no pide.
+- **Rechazado de la IA (si aplica):** —
+
+## D-32: Los precios de la reserva se toman de la BD
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** el total se calculaba con `cost` y `extra_bed_price` enviados por el cliente (S3).
+- **Propuesta de la IA:** calcular con `room_cost` y `extra_bed_price` de la tabla Room, quitar `cost` de los campos obligatorios y contar `extra_bed_price` NULL como 0.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** el cliente no debe poder fijar el precio.
+- **Rechazado de la IA (si aplica):** —
+
+## D-33: Ajustar test_validaciones.py al nuevo contrato
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** el campo `card_number` pasó a `card_token`, y el precio ya no sale del cliente.
+- **Propuesta de la IA:** que el helper `create()` envíe `card_token` y que `test_create_reservation_valid` espere el total calculado con los precios de la BD (300 en lugar de 200).
+- **Decisión del equipo:** aprobado.
+- **Justificación:** la prueba ahora demuestra que se ignora el `cost` enviado por el cliente.
+- **Rechazado de la IA (si aplica):** —
+
+## D-34: Aprobar las Etapas 3 y 4 juntas
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** el flujo pedía revisar el plan antes de cada etapa.
+- **Propuesta de la IA:** el plan de la Etapa 3.
+- **Decisión del equipo:** confirmar las Etapas 3 y 4 en un solo paso, sin ver antes el plan de la Etapa 4.
+- **Justificación:** [completar]
+- **Rechazado de la IA (si aplica):** —
+
+## D-35: Columnas explícitas en las consultas de Reservation
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** `get_reservation` y `get_reservation_by_card_number` usaban `SELECT *` y desempaquetaban 7 columnas. Con `created_at` serían 8 y fallarían.
+- **Propuesta de la IA:** cambiarlas a columnas explícitas, como cambio necesario para la columna nueva y no como corrección de otro bug.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** sin este cambio la columna nueva rompe código existente.
+- **Rechazado de la IA (si aplica):** —
+
+## D-36: Límites de weeks y history_weeks
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** el issue fija valores por defecto (8 y 12) pero no límites.
+- **Propuesta de la IA:** aceptar solo enteros entre 1 y 52, y responder 400 en cualquier otro caso.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** evita consultas sin límite o con valores sin sentido.
+- **Rechazado de la IA (si aplica):** —
+
+## D-37: El rango de los reportes se aplica a checkin_date
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** el issue no dice a qué fecha se aplican `from` y `to`.
+- **Propuesta de la IA:** filtrar por `checkin_date`, con ambos extremos incluidos (D-09), igual que la agrupación por mes. Si falta un parámetro, ese lado queda sin límite.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** es coherente con la forma en que ya se agrupaban los reportes.
+- **Rechazado de la IA (si aplica):** —
+
+## D-38: Textos de la previsión en inglés
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** el texto del campo `method` y de la vista nueva no tenía idioma definido.
+- **Propuesta de la IA:** inglés, como el resto de la interfaz.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** consistencia con la interfaz existente.
+- **Rechazado de la IA (si aplica):** —
+
+## D-39: Carga de Chart.js en el layout general
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** las vistas parciales de `ng-view` no ejecutan `<script>`.
+- **Propuesta de la IA:** cargar Chart.js 4.4.1 desde cdnjs en `templates/index.html`, con https, versión fija y hash SRI.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** es la única forma de que la vista lo tenga disponible, y el SRI protege contra un CDN alterado.
+- **Rechazado de la IA (si aplica):** —
+
+## D-40: No modificar el reporte de categoría popular
+- **Fecha / Issue:** 2026-10-28 / #N
+- **Contexto:** el issue permitía eliminar el `CREATE OR REPLACE VIEW` de `room_report` (B10) solo si había que modificarlo.
+- **Propuesta de la IA:** no tocar `room_report`.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** el issue no lo requiere. B10 queda registrado.
+- **Rechazado de la IA (si aplica):** —

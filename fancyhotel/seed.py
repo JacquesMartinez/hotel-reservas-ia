@@ -46,6 +46,7 @@ CREDIT_CARDS = {
 }
 
 HISTORY_DAYS = 365
+BOOKING_LEAD_DAYS = (1, 60) #a reservation is created between 1 and 60 days before its check-in
 RANDOM_SEED = 2026 #fixed so every run produces the same data
 
 
@@ -72,12 +73,14 @@ def build_reservations(rng, today):
 				username = rng.choice(usernames)
 				extra_bed = rng.random() < 0.3
 				total_cost = (room_cost + (extra_bed_price if extra_bed else 0)) * nights
+				created_at = min(checkin - timedelta(days=rng.randint(*BOOKING_LEAD_DAYS)), today) #never in the future
 				reservations.append({
 					'username': username,
 					'checkin_date': checkin,
 					'checkout_date': checkout,
 					'card_number': CREDIT_CARDS[username][0],
 					'total_cost': total_cost,
+					'created_at': created_at,
 					'location': location,
 					'room_number': room_number,
 					'extra_bed_or_not': '1' if extra_bed else '0'
@@ -119,8 +122,8 @@ def seed():
 		reservations = build_reservations(random.Random(RANDOM_SEED), date.today())
 		for reservation in reservations:
 			cursor.execute(
-				'''INSERT INTO Fancy_Hotel.Reservation (username, checkin_date, checkout_date, card_number, total_cost)
-				VALUES (%(username)s, %(checkin_date)s, %(checkout_date)s, %(card_number)s, %(total_cost)s)''',
+				'''INSERT INTO Fancy_Hotel.Reservation (username, checkin_date, checkout_date, card_number, total_cost, created_at)
+				VALUES (%(username)s, %(checkin_date)s, %(checkout_date)s, %(card_number)s, %(total_cost)s, %(created_at)s)''',
 				reservation
 			)
 			reservation['reservation_id'] = cursor.lastrowid

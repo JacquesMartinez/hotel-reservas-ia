@@ -1,0 +1,54 @@
+<div ng-hide="{{loggedInBool}}" important>
+	<h1>You aren't logged in yet! Please <a href="#/login">login</a> to view this page.</h1>
+</div>
+
+<div ng-show="{{loggedInBool}}" important>
+<h1>Hello {{currentUser}} ! </h1><br />
+
+<div ng-show="{{userType=='customer'}}">
+  Only managers can vew reports. Please login to a manager account to view this page.
+</div>
+
+<div ng-show="{{userType=='manager'}}">
+
+<h2>Demand Forecast</h2>
+
+<form class="form-inline">
+  <div class="form-group">
+    <label for="forecastLocation">Location</label>
+    <select id="forecastLocation" class="form-control" ng-model="location" ng-change="loadForecast()">
+      <option value="Atlanta">Atlanta</option>
+      <option value="Charlotte">Charlotte</option>
+      <option value="Savannah">Savannah</option>
+      <option value="Orlando">Orlando</option>
+      <option value="Miami">Miami</option>
+    </select>
+  </div>
+</form>
+
+<div style="position: relative; height: 320px; margin-top: 15px;">
+  <canvas id="forecastChart" role="img" aria-label="Weekly occupancy: history and forecast. The table below lists the forecast values."></canvas>
+</div>
+
+<p class="help-block">{{forecast.method}} The current week is still in progress, so it is not part of the history or the forecast.</p>
+
+<h3>Forecast weeks</h3>
+<table class="table-condensed">
+  <tr>
+    <th>Week of</th>
+    <th>Already booked</th>
+    <th>Forecast occupancy</th>
+    <th>Suggested price</th>
+  </tr>
+  <tr ng-repeat="week in forecast.forecast">
+    <td>{{formatWeek(week.week_start)}}</td>
+    <td>{{week.booked * 100 | number:0}} %</td>
+    <td>{{week.occupancy * 100 | number:0}} %</td>
+    <td>{{priceLabel(week.price_change_pct)}}</td>
+  </tr>
+</table>
+
+</div>
+
+<a href="#/portal">Return to the portal page</a>
+</div>

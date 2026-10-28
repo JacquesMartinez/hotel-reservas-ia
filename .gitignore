@@ -1,0 +1,16 @@
+# Variables de entorno (credenciales)
+.env
+
+# Entorno virtual
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Sistema / editor
+.DS_Store
+.vscode/
+.idea/

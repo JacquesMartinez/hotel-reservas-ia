@@ -49,3 +49,27 @@
 - **Decisión del equipo:** Corregir dentro de cada historia los bugs que la afectan (B1 y B2 en calendario; B8 y B9 en previsión; B13 en la migración). Los demás se registran como issues con etiqueta `bug`, sin compromiso de resolverlos.
 - **Justificación:** Mantener el foco en las historias de usuario evaluadas, dejando trazabilidad del resto.
 - **Rechazado de la IA (si aplica):** —
+
+## D-06: Rama base para la migración a Python 3
+- **Fecha / Issue:** 2026-10-28 / #___
+- **Contexto:** La rama `feat/seguridad-sesion-roles` necesita partir de una base ya migrada a Python 3, y la migración no existía.
+- **Propuesta de la IA:** Hacer primero la migración en `chore/migracion-python3` y crear después `feat/seguridad-sesion-roles` a partir de ella.
+- **Decisión del equipo:** Aceptada. Se hace la migración en `chore/migracion-python3` y se abre un PR para su aprobación. El issue de seguridad continúa cuando el PR esté aprobado.
+- **Justificación:** Separar la migración de la funcionalidad de seguridad permite revisar cada cambio por separado y evita mezclar problemas de compatibilidad con la lógica nueva.
+- **Rechazado de la IA (si aplica):** No aplica.
+
+## D-07: Script de datos de prueba `seed.py`
+- **Fecha / Issue:** 2026-10-28 / #___
+- **Contexto:** Para probar sesión y roles hacen falta usuarios de prueba, y no había un script que los creara. Los nombres deben tener 5 caracteres y empezar por `C` (cliente) o `M` (manager).
+- **Propuesta de la IA:** Crear `fancyhotel/seed.py` con usuarios de prueba para cada rol.
+- **Decisión del equipo:** Aceptada. La IA crea `fancyhotel/seed.py` con nombres de usuario aleatorios: clientes `C4Q7X`, `C8N2L`; managers `M3K9T`, `M6W1R`.
+- **Justificación:** Tener datos de prueba reproducibles facilita probar los permisos por rol sin crear usuarios a mano.
+- **Rechazado de la IA (si aplica):** No aplica.
+
+## D-08: Gestión de configuración con `.env`
+- **Fecha / Issue:** 2026-10-28 / #___
+- **Contexto:** Las credenciales y la configuración sensible no deben estar en el código ni subirse al repositorio.
+- **Propuesta de la IA:** Agregar `python-dotenv`, `.env.example` y un `.gitignore` que excluya `.env`.
+- **Decisión del equipo:** Aceptada en su totalidad.
+- **Justificación:** Mantiene los secretos fuera del control de versiones y documenta qué variables necesita el proyecto.
+- **Rechazado de la IA (si aplica):** No aplica.

@@ -8,6 +8,8 @@ WARNING: it empties every table before inserting. Only for local development.
 import random
 from datetime import date, timedelta
 
+from werkzeug.security import generate_password_hash
+
 import db #creates the database and tables if they don't exist
 
 
@@ -23,7 +25,7 @@ ROOMS = {
 	301: ('Suite', 250, 4, 50),
 }
 
-#username: (password, first_name, last_name, email)
+#username: (password, first_name, last_name, email) -- plain text here, stored as a hash
 CUSTOMERS = {
 	'Cl3a8': ('cliente123', 'Laura', 'Gomez', 'laura.gomez@example.com'),
 	'Cyp7d': ('cliente123', 'Pedro', 'Ramirez', 'pedro.ramirez@example.com'),
@@ -100,12 +102,12 @@ def seed():
 		cursor.executemany(
 			'''INSERT INTO Fancy_Hotel.Customer (username, password, first_name, last_name, email)
 			VALUES (%s, %s, %s, %s, %s)''',
-			[(username,) + data for username, data in CUSTOMERS.items()]
+			[(username, generate_password_hash(data[0])) + data[1:] for username, data in CUSTOMERS.items()]
 		)
 
 		cursor.executemany(
 			'''INSERT INTO Fancy_Hotel.Manager (username, password) VALUES (%s, %s)''',
-			list(MANAGERS.items())
+			[(username, generate_password_hash(password)) for username, password in MANAGERS.items()]
 		)
 
 		cursor.executemany(

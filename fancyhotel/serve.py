@@ -1,12 +1,18 @@
 import os
+from dotenv import load_dotenv
 from flask import Flask, render_template
 from flask_restful import Api
 import api as restapi
 
 
+load_dotenv() #SECRET_KEY comes from .env, like the DB_* variables
 
 app = Flask(__name__)
 app.debug = True
+app.secret_key = os.environ.get('SECRET_KEY')
+if not app.secret_key:
+	raise RuntimeError("SECRET_KEY no está definida en .env") #never fall back to a fixed key
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax")
 api = Api(app)
 
 
@@ -15,6 +21,8 @@ def index():
 	return render_template("index.html")
 
 api.add_resource(restapi.LoginResource, '/api/login')
+api.add_resource(restapi.MeResource, '/api/me')
+api.add_resource(restapi.LogoutResource, '/api/logout')
 api.add_resource(restapi.NewUserRegistrationResource, '/api/register')
 api.add_resource(restapi.SearchRoomsResource, '/api/searchRoom')
 api.add_resource(restapi.AvailabilityResource, '/api/availability')

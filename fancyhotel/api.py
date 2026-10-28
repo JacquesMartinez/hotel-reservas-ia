@@ -1,6 +1,29 @@
+from functools import wraps
+from flask import session
 from flask_restful import Resource, reqparse, abort, request
 import db #instantiates the database so we don't have to do that in here
 from datetime import datetime
+
+
+def login_required(method):
+	#401 without a session; protected methods take the username from the session, never from the request (S1)
+	@wraps(method)
+	def wrapper(*args, **kwargs):
+		if "username" not in session:
+			return {"error": "You must be logged in", "result": False}, 401
+		return method(*args, **kwargs)
+	return wrapper
+
+def manager_required(method):
+	#401 without a session, 403 for any role other than manager (S8)
+	@wraps(method)
+	def wrapper(*args, **kwargs):
+		if "username" not in session:
+			return {"error": "You must be logged in", "result": False}, 401
+		if session.get("role") != "manager":
+			return {"error": "Only managers can access this resource", "result": False}, 403
+		return method(*args, **kwargs)
+	return wrapper
 
 
 def validate_stay(checkIn, checkOut):
@@ -54,15 +77,31 @@ class LoginResource(Resource):
 		username = args['username']
 		password = args['password']
 
-		if db.mysqldb.login(username, password):
-			return {"message": "You logged in!", "result": True}
+		role = db.mysqldb.login(username, password)
+		if role:
+			session.clear() #start a fresh session on every login
+			session["username"] = username
+			session["role"] = role
+			return {"message": "You logged in!", "result": True, "role": role}
 		else:
 			return {"error": "Login information invalid. Check your username or password", "result": False}, 401
 
+class MeResource(Resource):
+	def get(self): #the user of the current session, so the front can restore it after a reload
+		if "username" not in session:
+			return {"error": "Not logged in", "result": False}, 401
+		return {"username": session["username"], "role": session["role"]}
+
+class LogoutResource(Resource):
+	def post(self):
+		session.clear()
+		return {"message": "You logged out", "result": True}
+
 class CreateReservationResource(Resource):
+	method_decorators = [login_required]
+
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
-		self.reqparse.add_argument('username', type=str, required=True, help="Please provide a username")
 		self.reqparse.add_argument('checkIn', type=str, required=True, help="Please provide a checkIn")
 		self.reqparse.add_argument('checkOut', type=str, required=True, help="Please provide a checkOut")
 		self.reqparse.add_argument('card_number', type=str, required=True, help="Please provide a card_number")
@@ -94,7 +133,7 @@ class CreateReservationResource(Resource):
 			if room['extra_bed_or_not'] == 1:
 				total_cost = total_cost + room['extra_bed_price']
 		total_cost *= deltaDays
-		id, message, result = db.mysqldb.insert_reservation(args['username'], args['checkIn'], args['checkOut'], args['card_number'], json_body['rooms'], total_cost)
+		id, message, result = db.mysqldb.insert_reservation(session['username'], args['checkIn'], args['checkOut'], args['card_number'], json_body['rooms'], total_cost)
 		
 		if not result:
 			return {"id": id, "message": message, "result": result}, 400
@@ -102,12 +141,13 @@ class CreateReservationResource(Resource):
 		return {"id": id, "message": message, "result": result}
 		
 class UpdateReservationResource(Resource):
+	method_decorators = [login_required]
+
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
 		self.reqparse.add_argument('reservation_id', type=str, required=True, help="Please provide a reservation_id")
 		self.reqparse.add_argument('checkIn', type=str, required=True, help="Please provide a check-in date")
 		self.reqparse.add_argument('checkOut', type=str, required=True, help="Please provide a check-out date")
-		self.reqparse.add_argument('username', type=str, required=True, help="Please provide a user name")
 		super(UpdateReservationResource, self).__init__()
 	
 	def put(self):
@@ -118,7 +158,7 @@ class UpdateReservationResource(Resource):
 
 		total_cost = 0
 		print(deltaDays)
-		rooms = db.mysqldb.get_rooms_for_reservation(args['username'], args['reservation_id'])
+		rooms = db.mysqldb.get_rooms_for_reservation(session['username'], args['reservation_id'])
 		for room in rooms:
 			if not db.mysqldb.is_room_free(room['room_number'], room['location'], args['checkIn'], args['checkOut'], args['reservation_id']):
 				return {"message": "Some rooms in your reservation are not free during the specified times", "result": False}, 400
@@ -129,27 +169,24 @@ class UpdateReservationResource(Resource):
 		#For the rooms in the reservation, check if each room is free during the requested times. If the room is not free, return false.
 		print(total_cost)
 		total_cost *= deltaDays
-		message, status = db.mysqldb.update_reservation(args['username'], args['reservation_id'], args['checkIn'], args['checkOut'], total_cost)
+		message, status = db.mysqldb.update_reservation(session['username'], args['reservation_id'], args['checkIn'], args['checkOut'], total_cost)
 		if status:
 			return {"message": message, "result": status}
 		else:
 			return {"message": message, "result": status}, 400
 
 class ReservationResource(Resource):
+	method_decorators = [login_required]
+
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
 		self.reqparse.add_argument('checkIn', type=str, required=True, help="Please provide a check-in date")
 		self.reqparse.add_argument('checkOut', type=str, required=True, help="Please provide a check-out date")
-		self.reqparse.add_argument('username', type=str, required=True, help="Please provide a user name")
-
-		self.getreqparse = reqparse.RequestParser()
-		self.getreqparse.add_argument('username', type=str, required=True, help="Please provide a user name", location='args')
 
 		super(ReservationResource, self).__init__()
 
 	def get(self, reservation_id):
-		args = self.getreqparse.parse_args()
-		reservation = db.mysqldb.get_reservation(args['username'], reservation_id, False)
+		reservation = db.mysqldb.get_reservation(session['username'], reservation_id, False)
 		if reservation:
 			return {"data": reservation, "result": True}
 		else:
@@ -159,7 +196,7 @@ class ReservationResource(Resource):
 		args = self.reqparse.parse_args()
 		 
 		total_cost = 0
-		rooms = db.mysqldb.get_rooms_for_reservation(args['username'], reservation_id)
+		rooms = db.mysqldb.get_rooms_for_reservation(session['username'], reservation_id)
 		for room in rooms:
 			if not db.mysqldb.is_room_free(room['room_number'], room['location'], args['checkIn'], args['checkOut'], reservation_id):
 				return {"message": "Some rooms in your reservation are not free during the specified times", "result": False}, 400
@@ -176,11 +213,12 @@ class ReservationResource(Resource):
 			return {"message": message, "result": status}, 400
 
 class UpdateReservationConfirmResource(Resource):
+	method_decorators = [login_required]
+
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
 		self.reqparse.add_argument('checkIn', type=str, required=True, help="Please provide a check-in date", location='args')
 		self.reqparse.add_argument('checkOut', type=str, required=True, help="Please provide a check-out date", location='args')
-		self.reqparse.add_argument('username', type=str, required=True, help="Please provide a user name", location='args')
 		super(UpdateReservationConfirmResource, self).__init__()
 
 	def get(self, reservation_id):
@@ -188,7 +226,7 @@ class UpdateReservationConfirmResource(Resource):
 		nights, error = validate_stay(args['checkIn'], args['checkOut'])
 		if error:
 			return error
-		rooms = db.mysqldb.get_rooms_for_reservation(args['username'], reservation_id)
+		rooms = db.mysqldb.get_rooms_for_reservation(session['username'], reservation_id)
 		for room in rooms:
 			if not db.mysqldb.is_room_free(room['room_number'], room['location'], args['checkIn'], args['checkOut'], reservation_id):
 				return {"message": "Some rooms in your reservation are not free during the specified times", "result": False}, 400
@@ -197,14 +235,10 @@ class UpdateReservationConfirmResource(Resource):
 
 
 class CancelReservationResource(Resource):
-	def __init__(self):
-		self.reqparse = reqparse.RequestParser()
-		self.reqparse.add_argument('username', type=str, required=True, help="Please provide a user name", location='args')
-		super(CancelReservationResource, self).__init__()
+	method_decorators = [login_required]
 
 	def get(self, reservation_id):
-		args = self.reqparse.parse_args()
-		message, status = db.mysqldb.cancel_reservation(args['username'], reservation_id)
+		message, status = db.mysqldb.cancel_reservation(session['username'], reservation_id)
 		if status:
 			return {"message": "Cancelled reservation", "result": True}
 		else:
@@ -247,16 +281,13 @@ class AvailabilityResource(Resource):
 		return {"occupied": db.mysqldb.get_occupied_nights(args['location'], args['type'], fromDate, toDate)}
 
 class CreditCardResource(Resource):
+	method_decorators = [login_required]
+
 	def __init__(self):
-		self.reqparse = reqparse.RequestParser()
-		self.reqparse.add_argument("username", type=str, required=True, help="Please provide a username", location='args')
-		
 		self.delete_reqparse = reqparse.RequestParser()
-		self.delete_reqparse.add_argument("username", type=str, required=True, help="Please provide a username", location='args')
 		self.delete_reqparse.add_argument("card_number", type=str, required=True, help="Please provide a card number", location='args')
 		
 		self.create_reqparse = reqparse.RequestParser()
-		self.create_reqparse.add_argument("username", type=str, required=True, location='json', help="Please provide a username")
 		self.create_reqparse.add_argument("card_number", type=str, required=True, location='json', help="Please provide a card_number")
 		self.create_reqparse.add_argument("name", type=str, required=True, location='json', help="Please provide a name")
 		self.create_reqparse.add_argument("cvv", type=str, required=True, location='json', help="Please provide a ccv")
@@ -265,38 +296,38 @@ class CreditCardResource(Resource):
 		super(CreditCardResource, self).__init__()
 		
 	def get(self):
-		args = self.reqparse.parse_args()
-		return db.mysqldb.get_credit_cards(args['username'])
-		
+		return db.mysqldb.get_credit_cards(session['username'])
+
 	def post(self):
 		args = self.create_reqparse.parse_args()
-		message, status = db.mysqldb.add_credit_card(args['username'], args['card_number'], args['cvv'], args['expiration_date'], args['name'])
+		message, status = db.mysqldb.add_credit_card(session['username'], args['card_number'], args['cvv'], args['expiration_date'], args['name'])
 		if status:
 			return {'message': message, 'result': status}
 		return {'message': message, 'result': status}, 400
 		
 	def delete(self):
 		args = self.delete_reqparse.parse_args()
-		reservations = db.mysqldb.get_reservation_by_card_number(args['username'], args['card_number'])
-		
+		reservations = db.mysqldb.get_reservation_by_card_number(session['username'], args['card_number'])
+
 		today = datetime.now()
 		for reservation in reservations:
 			if (datetime.strptime(reservation['checkout_date'], '%Y-%m-%d') - today).days > 0:
 				return {'message': "This card is used in a future reservation!", 'result': False}, 400
 
-		message, status = db.mysqldb.delete_credit_card(args['username'], args['card_number'])
+		message, status = db.mysqldb.delete_credit_card(session['username'], args['card_number'])
 
 		if status:
 			return {'message': message, 'result': status}
 		return {'message': message, 'result': status}, 400
 
 class ReviewResource(Resource):
+	method_decorators = {'post': [login_required]} #reading reviews stays public
+
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
 		self.reqparse.add_argument("location", type=str, required=True, help="Please provide a location", location='args')
 		
 		self.create_reqparse = reqparse.RequestParser()
-		self.create_reqparse.add_argument("username", type=str, required=True, location='json', help="Please provide a username")
 		self.create_reqparse.add_argument("comment", type=str, required=True, location='json', help="Please provide a card_number")
 		self.create_reqparse.add_argument("rating", type=str, required=True, location='json', help="Please provide a name")
 		self.create_reqparse.add_argument("location", type=str, required=True, location='json', help="Please provide a ccv")
@@ -307,32 +338,39 @@ class ReviewResource(Resource):
 	
 	def post(self):
 		args = self.create_reqparse.parse_args()
-		message, status = db.mysqldb.add_review(args['username'], args['location'], args['comment'], args['rating'])
+		message, status = db.mysqldb.add_review(session['username'], args['location'], args['comment'], args['rating'])
 		if status:
 			return {'message': message, 'result': status}
 		return {'message': message, 'result': status}, 400
 		
 class ReservationReportResource(Resource):
+	method_decorators = [manager_required]
+
 	def get(self):
 		return db.mysqldb.reservation_report()
 
 class PopularRoomReportResource(Resource):
+	method_decorators = [manager_required]
+
 	def get(self):
 		return db.mysqldb.room_report()
 
 class RevenueReportResource(Resource):
+	method_decorators = [manager_required]
+
 	def get(self):
 		return db.mysqldb.revenue_report()
 
 class GetReservationByCardNumberResource(Resource):
+	method_decorators = [login_required]
+
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
-		self.reqparse.add_argument("username", type=str, required=True, help="Please provide a username", location='args')
 		self.reqparse.add_argument("card_number", type=str, required=True, help="Please provide a card number", location='args')
 
 	def get(self):
 		args = self.reqparse.parse_args()
-		return db.mysqldb.get_reservation_by_card_number(args['username'], args['card_number']) #returns an array of reservations
+		return db.mysqldb.get_reservation_by_card_number(session['username'], args['card_number']) #returns an array of reservations
 
 
 

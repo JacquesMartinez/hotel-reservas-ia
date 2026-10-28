@@ -220,8 +220,10 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 		},
 		function(errorData)
 		{
-			console.log("This username is already taken. Please select another.");
-			window.alert("This username is already taken. Please select another.");
+			//show the server's reason: not every failure is a taken username
+			var message = (errorData.data && (errorData.data.error || errorData.data.message)) || "The account could not be created. Please try again.";
+			console.log(message);
+			window.alert(message);
 		});
 	}
 	

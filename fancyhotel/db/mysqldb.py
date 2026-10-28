@@ -1,6 +1,6 @@
 import os
 import mysql.connector
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class MysqlManager(object):
 
@@ -220,7 +220,7 @@ class MysqlManager(object):
 					FROM Fancy_Hotel.Room AS r
 					JOIN (Fancy_Hotel.Reserves_Extra_Bed AS bed, Fancy_Hotel.Reservation AS res)
 					ON bed.location = r.location AND bed.room_number = r.room_number AND res.reservation_id = bed.reservation_id
-					WHERE res.checkin_date >= %(checkinDate)s AND res.checkout_date <= %(checkoutDate)s AND res.cancelled_or_not = 0
+					WHERE res.checkin_date < %(checkoutDate)s AND res.checkout_date > %(checkinDate)s AND res.cancelled_or_not = 0
 				) AND location = %(location)s''',
 				{'location': location, 'checkinDate': checkinDate, 'checkoutDate':checkoutDate}
 			)
@@ -413,8 +413,8 @@ class MysqlManager(object):
 					AND res.reservation_id = bed.reservation_id
 				WHERE r.room_number = %(room_number)s 
 					AND r.location = %(location)s 
-					AND res.checkin_date >= %(checkinDate)s 
-					AND res.checkout_date <= %(checkoutDate)s 
+					AND res.checkin_date < %(checkoutDate)s
+					AND res.checkout_date > %(checkinDate)s
 					AND res.cancelled_or_not = 0 
 					AND res.reservation_id != %(exclude_reservation)s 
 				''',
@@ -422,6 +422,48 @@ class MysqlManager(object):
 			)
 			rows = cursor.fetchall()
 			return len(rows) == 0 #if the room does not occur in our query, then there will be returned an empty table, true
+		finally:
+			cursor.close()
+
+	def get_occupied_nights(self, location, room_type, from_date, to_date):
+		cursor = self.connection.cursor()
+		try:
+			cursor.execute(
+				'''SELECT COUNT(*)
+				FROM Fancy_Hotel.Room
+				WHERE location = %(location)s AND type = %(type)s
+				''',
+				{'location': location, 'type': room_type}
+			)
+			total_rooms = cursor.fetchall()[0][0] #with no room of the type, every night is occupied (D-06)
+
+			#all the reservations of the period in one query; a reservation occupies the nights checkin <= night < checkout
+			cursor.execute(
+				'''SELECT r.room_number, res.checkin_date, res.checkout_date
+				FROM Fancy_Hotel.Room AS r
+				JOIN (Fancy_Hotel.Reserves_Extra_Bed AS bed, Fancy_Hotel.Reservation AS res)
+				ON bed.location = r.location
+					AND bed.room_number = r.room_number
+					AND res.reservation_id = bed.reservation_id
+				WHERE r.location = %(location)s
+					AND r.type = %(type)s
+					AND res.checkin_date <= %(toDate)s
+					AND res.checkout_date > %(fromDate)s
+					AND res.cancelled_or_not = 0
+				''',
+				{'location': location, 'type': room_type, 'fromDate': from_date, 'toDate': to_date}
+			)
+			rows = cursor.fetchall()
+
+			#a night is occupied when no room of the type is left free (D-06)
+			occupied = []
+			night = from_date
+			while night <= to_date:
+				taken = set(room_number for room_number, checkin, checkout in rows if checkin <= night < checkout)
+				if len(taken) >= total_rooms:
+					occupied.append(night.isoformat())
+				night += timedelta(days=1)
+			return occupied
 		finally:
 			cursor.close()
 	

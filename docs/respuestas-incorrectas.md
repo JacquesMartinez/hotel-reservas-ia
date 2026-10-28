@@ -1,6 +1,6 @@
 # Respuestas incorrectas de la IA
 
-## RI-01: Título corto
+## RI-00: Título corto
 - **Fecha / Issue:**
 - **Herramienta:**
 - **Qué se pidió:**

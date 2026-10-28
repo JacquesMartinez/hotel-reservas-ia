@@ -5,7 +5,7 @@ def test_index_serves_spa(client):
 
 
 def test_login_valid_credentials(client, mysqldb):
-	mysqldb.login.return_value = True
+	mysqldb.login.return_value = 'customer'
 	response = client.post('/api/login', json={'username': 'Cl3a8', 'password': 'cliente123'})
 	assert response.status_code == 200
 	assert response.get_json()['result'] is True

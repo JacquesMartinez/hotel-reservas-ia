@@ -5,6 +5,15 @@ import pytest
 ROOM = {'location': 'Atlanta', 'room_number': 101, 'cost': 100, 'extra_bed_price': 20, 'extra_bed_or_not': 0}
 
 
+@pytest.fixture
+def client(client):
+	#the reservation endpoints require a session; the username now comes from it, not from the request
+	with client.session_transaction() as session:
+		session['username'] = 'Cl3a8'
+		session['role'] = 'customer'
+	return client
+
+
 def create(client, checkIn='2030-01-01', checkOut='2030-01-03', rooms=None):
 	return client.post('/api/reservation/create', json={
 		'username': 'Cl3a8', 'checkIn': checkIn, 'checkOut': checkOut,

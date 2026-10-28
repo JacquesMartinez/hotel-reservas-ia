@@ -106,7 +106,7 @@ resourceModule.factory('paymentFactory', function($resource){
 
 angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 
-.run(function($rootScope) {
+.run(function($rootScope, $http, $route, $location) {
     $rootScope.currentUser = '';
 	$rootScope.userType = '';
 	$rootScope.alreadyLoggedIn = function(){
@@ -133,6 +133,41 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 
 	$rootScope.isRequired = true;
 
+	//the session lives on the server: recover the user after a page reload
+	$http.get('/api/me').then(function(response){
+		$rootScope.currentUser = response.data.username;
+		$rootScope.userType = response.data.role;
+		$route.reload(); //the controllers read loggedInBool when they start, so start them again
+	}, function(){}); //401 just means nobody is logged in
+
+	$rootScope.logout = function(){
+		$http.post('/api/logout').then(function(){
+			$rootScope.currentUser = '';
+			$rootScope.userType = '';
+			$location.path('/');
+		});
+	}
+
+})
+
+//any 401 from the API means the session is missing or expired: send the user to the login page
+.factory('authInterceptor', function($q, $rootScope, $location){
+	return {
+		responseError: function(rejection){
+			var url = rejection.config && rejection.config.url;
+			//login answers 401 for wrong credentials and me answers 401 when nobody is logged in
+			if(rejection.status == 401 && url != '/api/login' && url != '/api/me'){
+				$rootScope.currentUser = '';
+				$rootScope.userType = '';
+				$location.path('/login');
+			}
+			return $q.reject(rejection);
+		}
+	};
+})
+
+.config(function($httpProvider){
+	$httpProvider.interceptors.push('authInterceptor');
 })
 
 

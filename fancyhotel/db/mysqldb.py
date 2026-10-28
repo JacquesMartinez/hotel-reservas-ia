@@ -1,6 +1,7 @@
 import os
 import mysql.connector
 from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class MysqlManager(object):
 
@@ -33,7 +34,7 @@ class MysqlManager(object):
 			cursor.execute(
 				'''CREATE TABLE IF NOT EXISTS Fancy_Hotel.Customer (
   					username CHAR(5) NOT NULL,
-  					password VARCHAR(16) NOT NULL,
+  					password VARCHAR(255) NOT NULL,
   					first_name VARCHAR(20) NOT NULL,
   					last_name VARCHAR(20) NOT NULL,
   					email VARCHAR(30) NOT NULL,
@@ -45,10 +46,15 @@ class MysqlManager(object):
 			cursor.execute(
 				'''CREATE TABLE IF NOT EXISTS Fancy_Hotel.Manager (
   					username char(5) NOT NULL,
-  					password varchar(16) NOT NULL,
+  					password varchar(255) NOT NULL,
  					PRIMARY KEY (username)
  				);'''
 			)
+
+			#CREATE TABLE IF NOT EXISTS does not alter existing tables: widen password so it fits a hash (S5)
+			#MODIFY with the same definition is a no-op, so this is safe on every start
+			cursor.execute('''ALTER TABLE Fancy_Hotel.Customer MODIFY password VARCHAR(255) NOT NULL;''')
+			cursor.execute('''ALTER TABLE Fancy_Hotel.Manager MODIFY password VARCHAR(255) NOT NULL;''')
 
 			cursor.execute(
 				'''CREATE TABLE IF NOT EXISTS Fancy_Hotel.Credit_Card (
@@ -167,7 +173,7 @@ class MysqlManager(object):
 			cursor.execute(
 				'''INSERT INTO Fancy_Hotel.Customer (username, email, password, first_name, last_name)
 				VALUES (%(username)s, %(email)s, %(password)s, %(first_name)s, %(last_name)s)''',
-				{'username': username, 'email': email, 'password': password, 'first_name': firstName, 'last_name': lastName}
+				{'username': username, 'email': email, 'password': generate_password_hash(password), 'first_name': firstName, 'last_name': lastName}
 			)
 			if cursor.rowcount != 1:
 				pass
@@ -177,35 +183,25 @@ class MysqlManager(object):
 			cursor.close()
 
 	def login(self, username, password):
+		#returns the role ("customer" or "manager") or None; the role comes from the username prefix
+		tables = {'C': ('Fancy_Hotel.Customer', 'customer'), 'M': ('Fancy_Hotel.Manager', 'manager')}
+		userType = (username or '')[:1].upper()
+		if userType not in tables:
+			return None
+		table, role = tables[userType]
+
 		cursor = self.connection.cursor()
 		try:
-
-			userType = username[0];
-
-			
-			if userType == 'C':
-				cursor.execute(
-					'''SELECT *
-					FROM Customer
-					WHERE username = %(username)s AND password = %(password)s''',
-					{'username': username, 'password':password}
-				)
-				rows = cursor.fetchall()
-				return len(rows)!=0
-
-			elif userType == 'M':
-				cursor.execute(
-					'''SELECT *
-					FROM Manager
-					WHERE username = %(username)s AND password = %(password)s''',
-					{'username': username, 'password':password}
-				)
-				rows = cursor.fetchall()
-				return len(rows)!=0
-
-			else:
-				print("you shouldn't be here. Names should only start with C or M.")
-				return False
+			cursor.execute(
+				'''SELECT password
+				FROM ''' + table + '''
+				WHERE username = %(username)s''',
+				{'username': username}
+			)
+			rows = cursor.fetchall()
+			if rows and check_password_hash(rows[0][0], password):
+				return role
+			return None
 		finally:
 			cursor.close()
 

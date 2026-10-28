@@ -13,10 +13,10 @@ Bloque 2 (endpoint nuevo): prueban GET /api/availability, que aún no existe.
 Bloque 3 (B2): crear una reserva sobre fechas ocupadas debe responder 409.
 
 Requisitos: MySQL corriendo, BD creada (ejecutar la app una vez) y .env configurado.
-Ejecutar desde la raíz del repo:   python -m pytest tests/integration -v
+Ejecutar desde fancyhotel/:   pytest tests/test_disponibilidad.py -v
 
-NOTA: cuando se implemente la HU de seguridad, el bloque 3 necesitará iniciar
-sesión antes de crear la reserva.
+El bloque 3 abre una sesión de cliente con session_transaction, para que siga
+funcionando después de la HU de seguridad (que exige login para reservar).
 """
 from datetime import date, timedelta
 
@@ -181,6 +181,9 @@ def test_availability_ignora_canceladas(escenario, cliente_http):
 # Bloque 3: revalidar disponibilidad al crear la reserva (B2)
 # ---------------------------------------------------------------------------
 def test_crear_reserva_sobre_fechas_ocupadas_responde_409(escenario, cliente_http):
+    with cliente_http.session_transaction() as sesion:
+        sesion["username"] = CLIENTE
+        sesion["role"] = "customer"
     r = cliente_http.post("/api/reservation/create", json={
         "username": CLIENTE,
         "checkIn": iso(11),

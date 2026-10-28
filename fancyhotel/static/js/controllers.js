@@ -37,6 +37,10 @@ resourceModule.factory('reservationFactory', function($resource){
 			method: 'GET',
 			url: '/api/searchRoom'
 		},
+		GetAvailability:{
+			method: 'GET',
+			url: '/api/availability'
+		},
 		GetReservation:{
 			method:'GET',
 			url: '/api/reservation/:reservation_id'
@@ -232,13 +236,36 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 		}
 	);
 	
+	var occupiedNights = []; //nights (YYYY-MM-DD) with no free room of the selected type in the location
+	var availabilityRequest = 0;
+
+	//the check-out may fall on the first occupied night after the check-in, but not later
+	function limitCheckOut(checkIn){
+		var endPicker = $('#endDatePicker').data("DateTimePicker");
+		endPicker.maxDate(false); //cleared first: minDate() throws if it is after maxDate
+		if(!checkIn){
+			endPicker.minDate(moment().add(1, 'd').startOf('day'));
+			return;
+		}
+		endPicker.minDate(checkIn.clone().add(1, 'd').startOf('day')); //at least one night
+		//compared as YYYY-MM-DD strings so no timezone conversion can shift the day
+		var checkInDay = checkIn.format('YYYY-MM-DD');
+		for(var i = 0; i < occupiedNights.length; i++){
+			if(occupiedNights[i] > checkInDay){
+				endPicker.maxDate(moment(occupiedNights[i], 'YYYY-MM-DD'));
+				return;
+			}
+		}
+	}
+
 	$('#startDatePicker').on("dp.change", function (e) {
 		console.log(e);
-		$('#endDatePicker').data("DateTimePicker").minDate(e.date);
+		limitCheckOut(e.date);
 	});
 
 	$('#endDatePicker').on("dp.change", function (e) {
-		$('#startDatePicker').data("DateTimePicker").maxDate(e.date);
+		//the check-in must be at least one night before the check-out
+		$('#startDatePicker').data("DateTimePicker").maxDate(e.date ? e.date.clone().subtract(1, 'd').endOf('day') : false);
 	});
 	
 	$("#newStartDate").datetimepicker(
@@ -250,17 +277,29 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 	$("#newEndDate").datetimepicker(
 		{
 			format: 'YYYY-MM-DD',
+			minDate: moment().add(1, 'd').startOf('day'),
+			useCurrent: false //keeps the field empty instead of filling it with the minDate
 		}
 	);
-	
+
 	$('#newStartDate').on("dp.change", function (e) {
 		console.log(e);
-		$('#newEndDate').data("DateTimePicker").minDate(e.date);
+		//at least one night
+		$('#newEndDate').data("DateTimePicker").minDate(e.date ? e.date.clone().add(1, 'd').startOf('day') : moment().add(1, 'd').startOf('day'));
 	});
 
 	$('#newEndDate').on("dp.change", function (e) {
-		$('#newStartDate').data("DateTimePicker").maxDate(e.date);
+		$('#newStartDate').data("DateTimePicker").maxDate(e.date ? e.date.clone().subtract(1, 'd').endOf('day') : false);
 	});
+
+	//the server's reason for a failed request; reqparse errors come as {"field": "help"}
+	function errorMessage(errorData, fallback){
+		var message = errorData.data && errorData.data.message;
+		if(message && typeof message === 'object'){
+			message = Object.keys(message).map(function(key){ return message[key]; }).join(' ');
+		}
+		return message || fallback;
+	}
 					
 	$scope.loggedInBool = $rootScope.alreadyLoggedIn();
 	$scope.viewPart1 = true; //these views are for the update page
@@ -283,7 +322,42 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 	$scope.selectedRooms = {};
 	$scope.extra_beds = {};
 	$scope.location="Atlanta";
+	$scope.roomType="Standard";
 
+	$scope.loadAvailability = function(){
+		var request = ++availabilityRequest;
+		var availabilityResponse = reservationFactory.GetAvailability(
+		{
+			"location": $scope.location,
+			"type": $scope.roomType,
+			"from": moment().format('YYYY-MM-DD'),
+			"to": moment().add(6, 'months').format('YYYY-MM-DD')
+		});
+		availabilityResponse.$promise.then(function(data){
+			if(request != availabilityRequest){
+				return; //the location or type changed again before this response arrived
+			}
+			occupiedNights = data["occupied"];
+			var startPicker = $('#startDatePicker').data("DateTimePicker");
+			//parsed with an explicit format: local midnight, never UTC
+			startPicker.disabledDates(occupiedNights.map(function(night){
+				return moment(night, 'YYYY-MM-DD');
+			}));
+			var checkIn = startPicker.date();
+			if(checkIn && occupiedNights.indexOf(checkIn.format('YYYY-MM-DD')) != -1){
+				startPicker.date(null); //the check-in is no longer bookable; dp.change resets the check-out limits
+			}
+			else{
+				limitCheckOut(checkIn);
+			}
+		},
+		function(errorData){
+			console.log("Could not load the availability calendar");
+		});
+	};
+	if($("#startDatePicker").length){ //this controller also serves the update and cancel views
+		$scope.loadAvailability();
+	}
 
 	$scope.creditCards = '';
 	//api/blah/blah?username=Csara
@@ -354,6 +428,7 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 		if($scope.creditCards=='' || $scope.creditCards.length==0){
 			console.log("credit card info required");
 			window.alert("Please select a credit card for payment. If you have no credit card, please add one first.");
+			return;
 		}
 		var cardExpireDate;
 		var currentCard = $scope.cardNumber;
@@ -415,6 +490,7 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 		if(rooms.length==0){
 			window.alert("You must select some room(s) in order to make a reservation.");
 			console.log("no rooms selected");
+			return;
 		}
 
 		var make_response = reservationFactory.MakeReservation(
@@ -431,6 +507,13 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 			console.log(data);
 			$scope.confirmationData = data;
 			$scope.confirmationPage = true;
+		},
+		function(errorData)
+		{
+			//400 (invalid data) or 409 (rooms no longer free): show the server's reason
+			var message = errorMessage(errorData, "The reservation could not be created. Please check the data and try again.");
+			console.log(message);
+			window.alert(message);
 		});
 	}
 
@@ -482,7 +565,8 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 		},
 		function(errorData)
 		{
-			window.alert("Sorry, but your selected rooms are not available for your newly selected dates.");
+			//invalid dates or rooms not free: show the server's reason
+			window.alert(errorMessage(errorData, "Sorry, but your selected rooms are not available for your newly selected dates."));
 		});
 
 	};
@@ -509,6 +593,9 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 		//handle promise
 		updateReservationResponse.$promise.then(function(data){
 			$window.location.href = "#/portal";
+		},
+		function(errorData){
+			window.alert(errorMessage(errorData, "The reservation could not be updated. Please check the dates and try again."));
 		});
 	};
 

@@ -3,6 +3,17 @@ import db #instantiates the database so we don't have to do that in here
 from datetime import datetime
 
 
+def validate_stay(checkIn, checkOut):
+	#returns (nights, None) or (None, error response) for malformed dates or less than one night
+	try:
+		checkInDate = datetime.strptime(checkIn, "%Y-%m-%d")
+		checkOutDate = datetime.strptime(checkOut, "%Y-%m-%d")
+	except ValueError:
+		return None, ({"message": "Dates must use the format YYYY-MM-DD", "result": False}, 400)
+	nights = (checkOutDate - checkInDate).days
+	if nights < 1:
+		return None, ({"message": "The check-out must be at least one night after the check-in", "result": False}, 400)
+	return nights, None
 
 #every method of a class has to have (self)
 class NewUserRegistrationResource(Resource):
@@ -61,12 +72,23 @@ class CreateReservationResource(Resource):
 	def post(self):
 		args = self.reqparse.parse_args()
 		json_body = request.json
-		
+
+		#reject malformed requests before touching the database
+		deltaDays, error = validate_stay(args["checkIn"], args["checkOut"])
+		if error:
+			return error
+		required_keys = ('location', 'room_number', 'cost', 'extra_bed_or_not')
+		for room in json_body['rooms']:
+			if not isinstance(room, dict) or any(room.get(key) in (None, '') for key in required_keys):
+				return {"message": "Each room needs a location, room_number, cost and extra_bed_or_not", "result": False}, 400
+
+		#the rooms may have been booked since the search, so check again before inserting anything
+		for room in json_body['rooms']:
+			if not db.mysqldb.is_room_free(room['room_number'], room['location'], args['checkIn'], args['checkOut'], -1):
+				return {"message": "Room %s in %s is no longer available for the selected dates" % (room['room_number'], room['location']), "result": False}, 409
+
 		total_cost = 0
-		checkInDate = datetime.strptime(args["checkIn"], "%Y-%m-%d")
-		checkOutDate = datetime.strptime(args["checkOut"], "%Y-%m-%d")
-		deltaDays = (checkOutDate - checkInDate).days
-		
+
 		for room in json_body['rooms']:
 			total_cost += room['cost']
 			if room['extra_bed_or_not'] == 1:
@@ -90,11 +112,11 @@ class UpdateReservationResource(Resource):
 	
 	def put(self):
 		args = self.reqparse.parse_args()
-		 
+		deltaDays, error = validate_stay(args["checkIn"], args["checkOut"])
+		if error:
+			return error
+
 		total_cost = 0
-		checkInDate = datetime.strptime(args["checkIn"], "%Y-%m-%d")
-		checkOutDate = datetime.strptime(args["checkOut"], "%Y-%m-%d")
-		deltaDays = (checkOutDate - checkInDate).days
 		print(deltaDays)
 		rooms = db.mysqldb.get_rooms_for_reservation(args['username'], args['reservation_id'])
 		for room in rooms:
@@ -163,6 +185,9 @@ class UpdateReservationConfirmResource(Resource):
 
 	def get(self, reservation_id):
 		args  = self.reqparse.parse_args()
+		nights, error = validate_stay(args['checkIn'], args['checkOut'])
+		if error:
+			return error
 		rooms = db.mysqldb.get_rooms_for_reservation(args['username'], reservation_id)
 		for room in rooms:
 			if not db.mysqldb.is_room_free(room['room_number'], room['location'], args['checkIn'], args['checkOut'], reservation_id):
@@ -200,7 +225,27 @@ class SearchRoomsResource(Resource):
 		checkOut = args['checkOut']
 		print(location)
 		return db.mysqldb.search_rooms(location, checkIn, checkOut)
-		
+
+class AvailabilityResource(Resource):
+	def __init__(self):
+		self.reqparse = reqparse.RequestParser()
+		self.reqparse.add_argument('location', type=str, required= True, help="Please select a location", location='args')
+		self.reqparse.add_argument('type', type=str, required= True, help="Please select a room type", location='args')
+		self.reqparse.add_argument('from', type=str, required= True, help="Please provide a start date", location='args')
+		self.reqparse.add_argument('to', type=str, required= True, help="Please provide an end date", location='args')
+		super(AvailabilityResource, self).__init__()
+
+	def get(self): #returns the nights (from and to included) with no free room of the type
+		args = self.reqparse.parse_args()
+		try:
+			fromDate = datetime.strptime(args['from'], "%Y-%m-%d").date()
+			toDate = datetime.strptime(args['to'], "%Y-%m-%d").date()
+		except ValueError:
+			return {"message": "Dates must use the format YYYY-MM-DD", "result": False}, 400
+		if fromDate > toDate:
+			return {"message": "The start date must not be after the end date", "result": False}, 400
+		return {"occupied": db.mysqldb.get_occupied_nights(args['location'], args['type'], fromDate, toDate)}
+
 class CreditCardResource(Resource):
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()

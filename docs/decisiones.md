@@ -74,3 +74,92 @@
 - **Justificación:** Mantiene los secretos fuera del control de versiones y documenta qué variables necesita el proyecto.
 - **Rechazado de la IA (si aplica):** No aplica.
 
+# Decisiones tomadas por humanos
+
+## D-08: Rama de trabajo para el issue
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Contexto:** `main` tenía cambios sin commitear (la reorganización de `tests/` y `pytest.ini`). La rama `feature/calendario-disponibilidad` era anterior a la migración a Python 3.
+- **Propuesta de la IA:** trabajar en el árbol actual sin ramas, o recrear la rama desde `main`.
+- **Decisión del equipo:** usar `feature/calendario-disponibilidad`, actualizada desde `main`, sin commits.
+- **Justificación:** aislar el trabajo del issue. La rama no tenía commits propios ni existía en el remoto.
+- **Rechazado de la IA (si aplica):** trabajar directamente en `main`.
+
+## D-09: El parámetro `to` es inclusivo
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Contexto:** no estaba definido si `to` contaba como la última noche del periodo.
+- **Propuesta de la IA:** incluir tanto `from` como `to`.
+- **Decisión del equipo:** aceptada.
+- **Justificación:** coincide con la forma en que el calendario consulta el periodo.
+- **Rechazado de la IA (si aplica):** —
+
+## D-10: Sede sin habitaciones del tipo elegido (decisión inicial, revertida por D-16)
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Contexto:** si aplicaba D-06 al pie de la letra, una sede sin habitaciones de ese tipo tendría todas las noches ocupadas.
+- **Propuesta de la IA:** aplicar D-06 tal cual y marcar todas las noches como ocupadas.
+- **Decisión del equipo:** devolver `[]`.
+- **Justificación:** [completar]
+- **Rechazado de la IA (si aplica):** la recomendación de aplicar D-06 literalmente.
+
+## D-11: No filtrar los resultados de búsqueda por tipo
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Contexto:** `/api/searchRoom` devuelve todos los tipos, mientras que el calendario se basa en un solo tipo.
+- **Propuesta de la IA:** agregar `| filter:{room_type: roomType}:true` al `ng-repeat`, sin aplicarlo por defecto.
+- **Decisión del equipo:** no filtrar.
+- **Justificación:** está fuera del alcance del issue.
+- **Rechazado de la IA (si aplica):** el filtro opcional.
+
+## D-12: No abordar la condición de carrera entre reservas simultáneas
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Contexto:** la revalidación de la Etapa 3 no usa bloqueo ni transacción.
+- **Propuesta de la IA:** dejarlo como observación, ya que se relaciona con B3 y B4.
+- **Decisión del equipo:** rechazado, se deja como está.
+- **Justificación:** corresponde a B3/B4, fuera del issue.
+- **Rechazado de la IA (si aplica):** —
+
+## D-13: Prohibir las reservas de 0 noches
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Contexto:** el calendario permitía que la salida coincidiera con la entrada y el servidor no validaba las fechas (B5).
+- **Propuesta de la IA:** reportado como observación.
+- **Decisión del equipo:** aprobado. Se exige al menos una noche, tanto en el servidor como en el calendario.
+- **Justificación:** una reserva de 0 noches hace que la habitación aparezca siempre libre.
+- **Rechazado de la IA (si aplica):** —
+
+## D-14: Mantener la interacción entre los pickers de entrada y salida
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Contexto:** para mover la entrada más allá de la salida actual, primero hay que mover la salida (comportamiento del código existente).
+- **Propuesta de la IA:** reportado como observación.
+- **Decisión del equipo:** rechazado, se deja como está.
+- **Justificación:** es comportamiento existente y está fuera del issue.
+- **Rechazado de la IA (si aplica):** —
+
+## D-15: No ampliar la ventana de 6 meses
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Contexto:** después de 6 meses el calendario no bloquea ninguna fecha.
+- **Propuesta de la IA:** reportado como observación.
+- **Decisión del equipo:** rechazado.
+- **Justificación:** el 409 de la Etapa 3 ya frena esas reservas.
+- **Rechazado de la IA (si aplica):** —
+
+## D-16: Revertir D-10 y marcar todas las noches como ocupadas
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Contexto:** con `[]`, el calendario quedaba abierto para un tipo que la sede no tiene.
+- **Propuesta de la IA:** la recomendación original de D-10.
+- **Decisión del equipo:** corregir. Ahora todas las noches se marcan como ocupadas.
+- **Justificación:** el calendario no debe ofrecer fechas imposibles.
+- **Rechazado de la IA (si aplica):** —
+
+## D-17: Validar los datos de entrada al crear una reserva
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Contexto:** `/api/reservation/create` respondía 500 con fechas mal formadas o con habitaciones incompletas.
+- **Propuesta de la IA:** reportado como observación.
+- **Decisión del equipo:** aprobado. Se responde 400 con un mensaje claro y el frontend muestra el motivo.
+- **Justificación:** el usuario debe saber por qué falla la reserva.
+- **Rechazado de la IA (si aplica):** —
+
+## D-18: Excepción a la regla para actualizar el docstring de las pruebas
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Contexto:** el docstring de `test_disponibilidad.py` tenía la ruta vieja, y la regla original prohibía modificar ese archivo.
+- **Propuesta de la IA:** reportado como observación.
+- **Decisión del equipo:** aprobado, cambiando solo esa línea del docstring.
+- **Justificación:** la documentación debe reflejar la ruta actual. No afecta al código de las pruebas.
+- **Rechazado de la IA (si aplica):** —

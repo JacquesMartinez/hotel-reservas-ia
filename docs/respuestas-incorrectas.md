@@ -1,6 +1,6 @@
 # Respuestas incorrectas de la IA
 
-## RI-01: Título corto
+## RI-00: Título corto
 - **Fecha / Issue:**
 - **Herramienta:**
 - **Qué se pidió:**
@@ -29,3 +29,40 @@
 - **Cómo lo detectamos:** La herramienta de escritorio, al leer el contenido del archivo, identificó la librería correcta. El equipo lo confirmó abriendo el encabezado de `static/libs/bootstrap-datepicker.js`. Las dos IAs se contradecían y la duda se resolvió leyendo el código.
 - **Corrección aplicada:** Se actualizó el criterio de aceptación del issue del calendario para usar `disabledDates` (Eonasdan v4).
 
+# Respuestas incorrectas de la IA
+
+## RI-03: El calendario de la Etapa 4 permitía reservas de 0 noches
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Herramienta:** Claude Code
+- **Qué se pidió:** limitar la salida a la primera noche ocupada posterior a la entrada.
+- **Qué respondió la IA:** `limitCheckOut` fijaba `minDate(checkIn)`, de modo que la salida podía ser el mismo día que la entrada.
+- **Por qué es incorrecto:** permitía reservas de 0 noches, que el sistema trata siempre como libres.
+- **Cómo lo detectamos:** revisión. La misma IA lo reportó en sus observaciones finales.
+- **Corrección aplicada:** la salida mínima pasó a ser la entrada + 1 día, y además se validó en el servidor (D-13).
+
+## RI-04: La revalidación de la Etapa 3 no controlaba datos inválidos
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Herramienta:** Claude Code
+- **Qué se pidió:** revalidar la disponibilidad antes de insertar y responder 409 si la habitación no está libre.
+- **Qué respondió la IA:** un bucle que accede a `room['room_number']` y `room['location']` sin validar los datos.
+- **Por qué es incorrecto:** con datos faltantes o fechas mal formadas el endpoint respondía 500 en lugar de un error claro.
+- **Cómo lo detectamos:** revisión, reportado por la IA.
+- **Corrección aplicada:** validación con 400 para fechas y campos de las habitaciones, y aviso en pantalla (D-17).
+
+## RI-05: El script de prueba en navegador falló en la primera corrida
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Herramienta:** Claude Code
+- **Qué se pidió:** verificar el frontend.
+- **Qué respondió la IA:** un script e2e (`scratchpad/e2e/calendar.js`) con dos fallas en la primera ejecución.
+- **Por qué es incorrecto:** según la IA, el error estaba en el script y no en la aplicación. Conviene confirmarlo revisando el script.
+- **Cómo lo detectamos:** ejecución.
+- **Corrección aplicada:** la IA corrigió el script y la segunda corrida pasó en las 4 zonas horarias.
+
+## RI-06: La corrección de 0 noches quedó incompleta
+- **Fecha / Issue:** 2026-10-28 / #4
+- **Herramienta:** Claude Code
+- **Qué se pidió:** "estructura que no se pueda reservar 0 noches".
+- **Qué respondió la IA:** validó solo la creación de reservas.
+- **Por qué es incorrecto:** modificar una reserva existente todavía permite 0 noches, tanto en el servidor como en su calendario.
+- **Cómo lo detectamos:** la IA lo informó como pendiente.
+- **Corrección aplicada:** pendiente de decisión.

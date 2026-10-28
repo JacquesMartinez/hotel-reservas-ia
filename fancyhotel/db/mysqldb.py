@@ -1,11 +1,22 @@
+import os
 import mysql.connector
 from datetime import datetime
 
 class MysqlManager(object):
 
 	def __init__(self):
-		self.connection = mysql.connector.connect(user='root', password='password', host='127.0.0.1', database='sys')
+		self.connection = self.connect('sys')
 		self.init_db()
+
+	def connect(self, database):
+		#credentials come from the environment (.env), never from the code
+		return mysql.connector.connect(
+			user=os.environ['DB_USER'],
+			password=os.environ['DB_PASSWORD'],
+			host=os.environ.get('DB_HOST', '127.0.0.1'),
+			port=int(os.environ.get('DB_PORT', '3306')),
+			database=database
+		)
 
 
 	def init_db(self):
@@ -112,7 +123,7 @@ class MysqlManager(object):
 		finally:
 			cursor.close()
 			self.connection.close() #closing the initial sys connection and reconnecting to our new db
-			self.connection = mysql.connector.connect(user='root', password='password', host='127.0.0.1', database='Fancy_Hotel')
+			self.connection = self.connect('Fancy_Hotel')
 
 
 
@@ -121,7 +132,7 @@ class MysqlManager(object):
 		try:
 			cursor.execute(
 				'''SELECT username 
-					FROM customer 
+					FROM Fancy_Hotel.Customer 
 					WHERE username = %(username)s''',
 					{'username': username}
 			)
@@ -193,7 +204,7 @@ class MysqlManager(object):
 				return len(rows)!=0
 
 			else:
-				print "you shouldn't be here. Names should only start with C or M."
+				print("you shouldn't be here. Names should only start with C or M.")
 				return False
 		finally:
 			cursor.close()
@@ -371,7 +382,7 @@ class MysqlManager(object):
 				else:
 					total_cost = 0
 
- 				cursor.execute(
+				cursor.execute(
 					'''UPDATE Fancy_Hotel.Reservation
 					SET cancelled_or_not = 1, total_cost = %(total_cost)s
 					WHERE reservation_id = %(reservation_id)s AND username = %(username)s

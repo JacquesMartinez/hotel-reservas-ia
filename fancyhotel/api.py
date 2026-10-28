@@ -95,7 +95,7 @@ class UpdateReservationResource(Resource):
 		checkInDate = datetime.strptime(args["checkIn"], "%Y-%m-%d")
 		checkOutDate = datetime.strptime(args["checkOut"], "%Y-%m-%d")
 		deltaDays = (checkOutDate - checkInDate).days
-		print deltaDays
+		print(deltaDays)
 		rooms = db.mysqldb.get_rooms_for_reservation(args['username'], args['reservation_id'])
 		for room in rooms:
 			if not db.mysqldb.is_room_free(room['room_number'], room['location'], args['checkIn'], args['checkOut'], args['reservation_id']):
@@ -105,7 +105,7 @@ class UpdateReservationResource(Resource):
 			if room['extra_bed_or_not'] == '1':
 				total_cost += room['extra_bed_price']
 		#For the rooms in the reservation, check if each room is free during the requested times. If the room is not free, return false.
-		print total_cost
+		print(total_cost)
 		total_cost *= deltaDays
 		message, status = db.mysqldb.update_reservation(args['username'], args['reservation_id'], args['checkIn'], args['checkOut'], total_cost)
 		if status:
@@ -121,7 +121,7 @@ class ReservationResource(Resource):
 		self.reqparse.add_argument('username', type=str, required=True, help="Please provide a user name")
 
 		self.getreqparse = reqparse.RequestParser()
-		self.getreqparse.add_argument('username', type=str, required=True, help="Please provide a user name")
+		self.getreqparse.add_argument('username', type=str, required=True, help="Please provide a user name", location='args')
 
 		super(ReservationResource, self).__init__()
 
@@ -156,9 +156,9 @@ class ReservationResource(Resource):
 class UpdateReservationConfirmResource(Resource):
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
-		self.reqparse.add_argument('checkIn', type=str, required=True, help="Please provide a check-in date")
-		self.reqparse.add_argument('checkOut', type=str, required=True, help="Please provide a check-out date")
-		self.reqparse.add_argument('username', type=str, required=True, help="Please provide a user name")
+		self.reqparse.add_argument('checkIn', type=str, required=True, help="Please provide a check-in date", location='args')
+		self.reqparse.add_argument('checkOut', type=str, required=True, help="Please provide a check-out date", location='args')
+		self.reqparse.add_argument('username', type=str, required=True, help="Please provide a user name", location='args')
 		super(UpdateReservationConfirmResource, self).__init__()
 
 	def get(self, reservation_id):
@@ -174,7 +174,7 @@ class UpdateReservationConfirmResource(Resource):
 class CancelReservationResource(Resource):
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
-		self.reqparse.add_argument('username', type=str, required=True, help="Please provide a user name")
+		self.reqparse.add_argument('username', type=str, required=True, help="Please provide a user name", location='args')
 		super(CancelReservationResource, self).__init__()
 
 	def get(self, reservation_id):
@@ -188,9 +188,9 @@ class CancelReservationResource(Resource):
 class SearchRoomsResource(Resource):
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
-		self.reqparse.add_argument('location', type=str, required= True, help="Please select a location")
-		self.reqparse.add_argument('checkIn', type=str, required= True, help="Please select a check-in date")
-		self.reqparse.add_argument('checkOut', type=str, required= True, help="Please select a check-out date")
+		self.reqparse.add_argument('location', type=str, required= True, help="Please select a location", location='args')
+		self.reqparse.add_argument('checkIn', type=str, required= True, help="Please select a check-in date", location='args')
+		self.reqparse.add_argument('checkOut', type=str, required= True, help="Please select a check-out date", location='args')
 		super(SearchRoomsResource, self).__init__()
 
 	def get(self): #get request, because we are pulling info from the database
@@ -198,17 +198,17 @@ class SearchRoomsResource(Resource):
 		location = args['location']
 		checkIn = args['checkIn']
 		checkOut = args['checkOut']
-		print location
+		print(location)
 		return db.mysqldb.search_rooms(location, checkIn, checkOut)
 		
 class CreditCardResource(Resource):
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
-		self.reqparse.add_argument("username", type=str, required=True, help="Please provide a username")
+		self.reqparse.add_argument("username", type=str, required=True, help="Please provide a username", location='args')
 		
 		self.delete_reqparse = reqparse.RequestParser()
-		self.delete_reqparse.add_argument("username", type=str, required=True, help="Please provide a username")
-		self.delete_reqparse.add_argument("card_number", type=str, required=True, help="Please provide a card number")
+		self.delete_reqparse.add_argument("username", type=str, required=True, help="Please provide a username", location='args')
+		self.delete_reqparse.add_argument("card_number", type=str, required=True, help="Please provide a card number", location='args')
 		
 		self.create_reqparse = reqparse.RequestParser()
 		self.create_reqparse.add_argument("username", type=str, required=True, location='json', help="Please provide a username")
@@ -248,7 +248,7 @@ class CreditCardResource(Resource):
 class ReviewResource(Resource):
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
-		self.reqparse.add_argument("location", type=str, required=True, help="Please provide a location")
+		self.reqparse.add_argument("location", type=str, required=True, help="Please provide a location", location='args')
 		
 		self.create_reqparse = reqparse.RequestParser()
 		self.create_reqparse.add_argument("username", type=str, required=True, location='json', help="Please provide a username")
@@ -282,8 +282,8 @@ class RevenueReportResource(Resource):
 class GetReservationByCardNumberResource(Resource):
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
-		self.reqparse.add_argument("username", type=str, required=True, help="Please provide a username")
-		self.reqparse.add_argument("card_number", type=str, required=True, help="Please provide a card number")
+		self.reqparse.add_argument("username", type=str, required=True, help="Please provide a username", location='args')
+		self.reqparse.add_argument("card_number", type=str, required=True, help="Please provide a card number", location='args')
 
 	def get(self):
 		args = self.reqparse.parse_args()

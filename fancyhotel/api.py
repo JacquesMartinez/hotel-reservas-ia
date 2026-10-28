@@ -3,6 +3,7 @@ from flask import session
 import re
 from flask_restful import Resource, reqparse, abort, request, inputs
 import db #instantiates the database so we don't have to do that in here
+import correo
 from datetime import datetime, date, timedelta
 
 
@@ -130,6 +131,12 @@ class NewUserRegistrationResource(Resource):
 		firstName = args['firstName']
 		lastName = args['lastName']
 
+		#same limits as the Customer columns, so a long value gets a 400 instead of a "Data too long" 500
+		if not re.fullmatch(r'C[a-zA-Z0-9]{4}', username or ''):
+			return {"error": "Usernames must be a C followed by 4 letters or numbers", "result": False}, 400
+		if len(email or '') > 255 or len(firstName or '') > 50 or len(lastName or '') > 50:
+			return {"error": "Email must be at most 255 characters and names at most 50", "result": False}, 400
+
 		if not db.mysqldb.user_exists(username) and  not db.mysqldb.email_exists(email):
 			db.mysqldb.register_user(username, email, password, firstName, lastName)
 			return {"message": "User successfully created", "result": True}
@@ -223,9 +230,11 @@ class CreateReservationResource(Resource):
 		
 		if not result:
 			return {"id": id, "message": message, "result": result}, 400
-			
+
+		#only once the reservation is saved; a failed email is logged and never changes the response
+		correo.send_reservation_confirmation(session['username'], id, args['checkIn'], args['checkOut'], json_body['rooms'], total_cost)
 		return {"id": id, "message": message, "result": result}
-		
+
 class UpdateReservationResource(Resource):
 	method_decorators = [login_required]
 

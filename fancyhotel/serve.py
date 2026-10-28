@@ -16,6 +16,11 @@ app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax")
 api = Api(app)
 
 
+@app.teardown_appcontext
+def close_db_connection(exception):
+	restapi.db.mysqldb.close_connection() #each request thread opens its own connection; close it when done
+
+
 @app.route('/')
 def index():
 	return render_template("index.html")

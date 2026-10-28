@@ -1,4 +1,42 @@
+<section class="hero">
+	<span class="eyebrow">Welcome</span>
+	<h1>Your next stay, booked in minutes.</h1>
+	<p>Search available rooms across our five locations, manage your reservations and share your experience.</p>
+	<div class="hero-actions" ng-hide="currentUser">
+		<a class="btn btn-accent btn-lg" href="#/register">Register an account</a>
+		<a class="btn btn-default btn-lg" href="#/login">Login</a>
+	</div>
+	<div class="hero-actions" ng-show="currentUser">
+		<a class="btn btn-accent btn-lg" href="#/portal">Go to your portal</a>
+	</div>
+</section>
 
-Welcome<br />
-New User -  <a href="#/register">Register an account</a><br />
-Existing user - <a href="#/login">Login</a>
+<div class="row">
+	<div class="col-sm-4">
+		<div class="card-ui feature">
+			<span class="icon-bubble"><span class="glyphicon glyphicon-calendar"></span></span>
+			<div>
+				<h3>Live availability</h3>
+				<p>Fully booked nights are blocked right in the calendar.</p>
+			</div>
+		</div>
+	</div>
+	<div class="col-sm-4">
+		<div class="card-ui feature">
+			<span class="icon-bubble accent"><span class="glyphicon glyphicon-credit-card"></span></span>
+			<div>
+				<h3>One-click booking</h3>
+				<p>Save a default card and reserve without typing it again.</p>
+			</div>
+		</div>
+	</div>
+	<div class="col-sm-4">
+		<div class="card-ui feature">
+			<span class="icon-bubble success"><span class="glyphicon glyphicon-envelope"></span></span>
+			<div>
+				<h3>Instant confirmation</h3>
+				<p>Your reservation ID arrives by email as soon as you book.</p>
+			</div>
+		</div>
+	</div>
+</div>

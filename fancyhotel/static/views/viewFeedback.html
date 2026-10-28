@@ -1,47 +1,64 @@
-<div ng-hide="{{loggedInBool}}" important>
-    <h1>You aren't logged in yet! Please <a href="#/login">login</a> to view this page.</h1>
+<div class="card-ui state-card" ng-hide="{{loggedInBool}}">
+    <span class="state-icon"><span class="glyphicon glyphicon-lock"></span></span>
+    <h2>You aren't logged in yet!</h2>
+    <p>Please <a href="#/login">login</a> to view this page.</p>
 </div>
 
+<a class="back-link" href="#/portal" ng-show="{{loggedInBool}}"><span class="glyphicon glyphicon-chevron-left"></span>Return to the portal page</a>
 
 <div ng-show="{{userType=='customer'}}">
-Hello {{currentUser}}!<br />
 
-<h2>View Review</h2>
-<div class="container"> 
-  <form class="form-group" ng-submit="getReviews()">
-        <label for="location">Hotel Location</label>
-            <select ng-model="location" required>
-                <option value="Atlanta" selected="selected">Atlanta</option>
-                <option value="Charlotte">Charlotte</option>
-                <option value="Savannah">Savannah</option>
-                <option value="Orlando">Orlando</option>
-                <option value="Miami">Miami</option>
-            </select>
-    
-    <button type="submit" class="btn btn-default">Check Reviews</button>
+<div class="page-head">
+    <span class="eyebrow">Hello {{currentUser}}!</span>
+    <h1>View Review</h1>
+    <p class="subtitle">Read what other guests say about each location.</p>
+</div>
+
+<div class="card-ui filter-bar">
+  <form ng-submit="getReviews()">
+    <div class="row">
+      <div class="col-sm-6 col-md-4">
+        <div class="form-group">
+          <label for="location">Hotel Location</label>
+          <select id="location" class="form-control" ng-model="location" required>
+              <option value="Atlanta" selected="selected">Atlanta</option>
+              <option value="Charlotte">Charlotte</option>
+              <option value="Savannah">Savannah</option>
+              <option value="Orlando">Orlando</option>
+              <option value="Miami">Miami</option>
+          </select>
+        </div>
+      </div>
+      <div class="col-sm-4 col-md-3 form-group">
+        <label class="hidden-xs">&nbsp;</label>
+        <button type="submit" class="btn btn-primary btn-block btn-field"><span class="glyphicon glyphicon-search"></span>Check Reviews</button>
+      </div>
+    </div>
   </form>
 </div>
 
-<div class="container" ng-show="viewPart2"> 
+<div class="card-ui" ng-show="viewPart2">
 
-{{emptyTable}} <!--will display a message if the table returned was empty-->
+<div class="empty-inline" ng-show="hide">
+    <span class="glyphicon glyphicon-comment"></span>
+    {{emptyTable}} <!--will display a message if the table returned was empty-->
+</div>
 
-<table ng-hide="hide">
-  <tr>
-    <th>Rating</th>
-    <th>Comment</th>		
-  </tr>
-  <tr ng-repeat="rating in reviews">
-    <td>{{reviews[$index].rating}}</td>
-    <td>{{rating.comment}}</td>
-  </tr>
-</table>
-
+<div ng-hide="hide">
+  <h2 class="card-ui-title"><span class="glyphicon glyphicon-star"></span>Reviews
+    <span class="count">{{reviews.length}} reviews</span>
+  </h2>
+  <div class="review-list">
+    <div class="review-item" ng-repeat="rating in reviews">
+      <span class="pill" ng-class="{'pill-success': (rating.rating | lowercase) == 'excellent' || (rating.rating | lowercase) == 'good', 'pill-danger': (rating.rating | lowercase) == 'bad' || (rating.rating | lowercase) == 'very bad', 'pill-muted': (rating.rating | lowercase) == 'neutral'}">{{reviews[$index].rating}}</span>
+      <p>{{rating.comment}}</p>
+    </div>
+  </div>
+</div>
 
 </div> <!--div for viewPart2-->
 </div> <!--div for customer-->
-<a href="#/portal">Return to the portal page</a>
-<div ng-show="{{userType=='manager'}}">
+
+<div class="alert alert-warning" ng-show="{{userType=='manager'}}">
   Only customers can update reservations. Please login to your customer account to view this page.
 </div>
-

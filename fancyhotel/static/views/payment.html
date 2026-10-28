@@ -1,77 +1,104 @@
-<div ng-hide="{{loggedInBool}}" important>
-    <h1>You aren't logged in yet! Please <a href="#/login">login</a> to view this page.</h1>
+<div class="card-ui state-card" ng-hide="{{loggedInBool}}">
+    <span class="state-icon"><span class="glyphicon glyphicon-lock"></span></span>
+    <h2>You aren't logged in yet!</h2>
+    <p>Please <a href="#/login">login</a> to view this page.</p>
 </div>
 
-<div ng-show="{{loggedInBool}}" important>
-<h1>Hello {{currentUser}} ! </h1><br />
-<div ng-show="{{userType=='customer'}}">
+<div ng-show="{{loggedInBool}}">
+<a class="back-link" href="#/portal"><span class="glyphicon glyphicon-chevron-left"></span>Return to the portal page</a>
 
-<h1>Payment Information</h1>
-<div class="container">	
-    <form ng-submit="addCard()">
-	    <h1>Add card</h1>
-        <div class="form-group">
-            <label for="cardname">Name on the card</label>
-            <input type="cardname" class="form-control" ng-model="cardName" required>
-        </div>
-        <div class="form-group">
-            <label for="cardname">Card Number</label>
-            <input type="text" class="form-control" ng-model="creditCardNumber" placeholder="16 digits" maxlength="16" pattern="[0-9]{16}" inputmode="numeric" autocomplete="cc-number" required>
-        </div>
-        <div class="form-group">
-            <label for="expiredate">Expiration Date</label>
-            <div class='input-group date' id='expirationDatePicker'>
-                <input type="text" class="form-control" placeholder="Expiration Date" required>
-                <span class="input-group-addon">
-                    <span class="glyphicon glyphicon-calendar"></span>
-                </span>
+<div class="page-head">
+    <span class="eyebrow">Hello {{currentUser}}!</span>
+    <h1>Payment Information</h1>
+    <p class="subtitle" ng-show="{{userType=='customer'}}">Only the last 4 digits of your cards are kept. Your default card lets you book in one click.</p>
+</div>
+
+<div ng-show="{{userType=='customer'}}">
+<div class="row">
+    <div class="col-md-5">
+        <div class="card-ui">
+            <h2 class="card-ui-title"><span class="glyphicon glyphicon-plus-sign"></span>Add card</h2>
+            <form ng-submit="addCard()">
+                <div class="form-group">
+                    <label for="cardname">Name on the card</label>
+                    <input type="text" id="cardname" class="form-control" ng-model="cardName" autocomplete="cc-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="cardnumber">Card Number</label>
+                    <input type="text" id="cardnumber" class="form-control" ng-model="creditCardNumber" placeholder="16 digits" maxlength="16" pattern="[0-9]{16}" inputmode="numeric" autocomplete="cc-number" required>
+                </div>
+                <div class="row">
+                    <div class="col-xs-7">
+                        <div class="form-group">
+                            <label for="expiredate">Expiration Date</label>
+                            <div class='input-group date' id='expirationDatePicker'>
+                                <input type="text" class="form-control" placeholder="Expiration Date" required>
+                                <span class="input-group-addon">
+                                    <span class="glyphicon glyphicon-calendar"></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xs-5">
+                        <div class="form-group">
+                            <label for="cvv">CVV</label>
+                            <input type="password" id="cvv" class="form-control" placeholder="xxx" ng-model="cvv" maxlength="3" pattern="[0-9]{3}" inputmode="numeric" autocomplete="cc-csc" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="checkbox">
+                    <label><input type="checkbox" ng-model="makeDefault"> Use as my default card</label>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block"><span class="glyphicon glyphicon-plus"></span>Add Card</button>
+            </form>
+            <div class="card-ui-footer">
+                <a href="#/searchroom"><span class="glyphicon glyphicon-chevron-left"></span> Back to Reservation Page</a>
             </div>
         </div>
-        <div class="form-group">
-            <label for="cvv">CVV</label>
-            <input type="password" class="form-control" placeholder="xxx" ng-model="cvv" maxlength="3" pattern="[0-9]{3}" inputmode="numeric" autocomplete="cc-csc" required>
-        </div>
-        <div class="checkbox">
-            <label><input type="checkbox" ng-model="makeDefault"> Use as my default card</label>
-        </div>
-        <button type="submit" class="btn btn-default">Add Card</button>
-    </form>
-<br /><br />
-    <a href="#/searchroom">Back to Reservation Page</a>
-</div>
-
-
-<hr />
-
-<div class="container">
-	    <h1>Saved cards</h1>
-        <p ng-show="creditCards && creditCards.length == 0">You have no saved cards.</p>
-        <table class="table" ng-show="creditCards.length > 0">
-            <tr>
-                <th>Card</th>
-                <th>Name</th>
-                <th>Expires</th>
-                <th></th>
-                <th></th>
-            </tr>
-            <tr ng-repeat="card in creditCards">
-                <td>&bull;&bull;&bull;&bull; {{card.last4}}</td>
-                <td>{{card.name}}</td>
-                <td>{{card.expiration_date}}</td>
-                <td>
-                    <span class="label label-primary" ng-show="card.is_default">Default</span>
-                    <button type="button" class="btn btn-default btn-xs" ng-hide="card.is_default" ng-click="setDefaultCard(card)">Make default</button>
-                </td>
-                <td><button type="button" class="btn btn-danger btn-xs" ng-click="deleteCard(card)">Delete</button></td>
-            </tr>
-        </table>
     </div>
+
+    <div class="col-md-7">
+        <div class="card-ui flush">
+            <h2 class="card-ui-title"><span class="glyphicon glyphicon-credit-card"></span>Saved cards
+                <span class="count" ng-show="creditCards.length > 0">{{creditCards.length}}</span>
+            </h2>
+            <div class="empty-inline" ng-show="creditCards && creditCards.length == 0">
+                <span class="glyphicon glyphicon-credit-card"></span>
+                You have no saved cards.
+            </div>
+            <div class="table-responsive" ng-show="creditCards.length > 0">
+            <table class="table table-hover">
+                <thead>
+                <tr>
+                    <th>Card</th>
+                    <th>Name</th>
+                    <th>Expires</th>
+                    <th></th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr ng-repeat="card in creditCards">
+                    <td class="card-number">&bull;&bull;&bull;&bull; {{card.last4}}</td>
+                    <td>{{card.name}}</td>
+                    <td>{{card.expiration_date}}</td>
+                    <td>
+                        <span class="pill pill-success" ng-show="card.is_default">Default</span>
+                        <button type="button" class="btn btn-default btn-xs" ng-hide="card.is_default" ng-click="setDefaultCard(card)">Make default</button>
+                    </td>
+                    <td class="actions"><button type="button" class="btn btn-danger btn-xs" ng-click="deleteCard(card)"><span class="glyphicon glyphicon-trash"></span>Delete</button></td>
+                </tr>
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+</div>
 
 </div> <!--Customer div-->
 
-<a href="#/portal">Return to the portal page</a>
 </div> <!--Logged in Div-->
 
-<div ng-show="{{userType=='manager'}}">
-  Only customers can add and delete payment info. Please login to a customer account to access this page.
+<div class="alert alert-warning" ng-show="{{userType=='manager'}}">
+    <span class="glyphicon glyphicon-info-sign"></span>Only customers can add and delete payment info. Please login to a customer account to access this page.
 </div>

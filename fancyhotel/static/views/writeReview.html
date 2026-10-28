@@ -1,52 +1,62 @@
-<div ng-hide="{{loggedInBool}}" important>
-    <h1>You aren't logged in yet! Please <a href="#/login">login</a> to view this page.</h1>
+<div class="card-ui state-card" ng-hide="{{loggedInBool}}">
+    <span class="state-icon"><span class="glyphicon glyphicon-lock"></span></span>
+    <h2>You aren't logged in yet!</h2>
+    <p>Please <a href="#/login">login</a> to view this page.</p>
 </div>
 
+<a class="back-link" href="#/portal" ng-show="{{loggedInBool}}"><span class="glyphicon glyphicon-chevron-left"></span>Return to the portal page</a>
 
 <div ng-show="{{userType=='customer'}}">
-Hello {{currentUser}}!<br />
 
+<div class="page-head">
+    <span class="eyebrow">Hello {{currentUser}}!</span>
+    <h1>Give Review</h1>
+    <p class="subtitle">Share how your stay went. Your review helps other guests choose.</p>
+</div>
 
-<h2>Give Review</h2>
-<div class="container"> 
+<div class="row">
+<div class="col-md-8 col-lg-7">
+<div class="card-ui">
     <form ng-submit="addReview()">
-    <div class="form-group">
-        <label for="location">Hotel Location</label>
-            <select ng-model="location" required>
-                <option value="Atlanta" selected="selected">Atlanta</option>
-                <option value="Charlotte">Charlotte</option>
-                <option value="Savannah">Savannah</option>
-                <option value="Orlando">Orlando</option>
-                <option value="Miami">Miami</option>
-            </select>
-    </div>
-    <div class="form-group">
-        <label for="rating">Rating</label>
-            <select ng-model="rating" required>
-                <option value="excellent" selected="selected">Excellent</option>
-                <option value="good">Good</option>
-                <option value="Neutral">Neutral</option>
-                <option value="bad">Bad</option>
-                <option value="very bad">Very Bad</option>
+    <div class="row">
+        <div class="col-sm-6">
+            <div class="form-group">
+                <label for="location">Hotel Location</label>
+                <select id="location" class="form-control" ng-model="location" required>
+                    <option value="Atlanta" selected="selected">Atlanta</option>
+                    <option value="Charlotte">Charlotte</option>
+                    <option value="Savannah">Savannah</option>
+                    <option value="Orlando">Orlando</option>
+                    <option value="Miami">Miami</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-sm-6">
+            <div class="form-group">
+                <label for="rating">Rating</label>
+                <select id="rating" class="form-control" ng-model="rating" required>
+                    <option value="excellent" selected="selected">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="Neutral">Neutral</option>
+                    <option value="bad">Bad</option>
+                    <option value="very bad">Very Bad</option>
 
-            </select>
+                </select>
+            </div>
+        </div>
     </div>
     <div class="form-group">
       <label for="comment">Comment</label>
-      <input type="comment" class="form-control" ng-model="comment">
+      <textarea id="comment" class="form-control" ng-model="comment" placeholder="Tell us about your stay (optional)"></textarea>
     </div>
-    <button type="submit" class="btn btn-default">Submit</button>
+    <button type="submit" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-send"></span>Submit</button>
     </form>
 </div>
-
-
-
-
+</div>
+</div>
 
 </div> <!--Div for being a customer-->
 
-<a href="#/portal">Return to the portal page</a>
-<div ng-show="{{userType=='manager'}}">
-  Only customers can update reservations. Please login to your customer account to view this page.
+<div class="alert alert-warning" ng-show="{{userType=='manager'}}">
+    <span class="glyphicon glyphicon-info-sign"></span>Only customers can update reservations. Please login to your customer account to view this page.
 </div>
-

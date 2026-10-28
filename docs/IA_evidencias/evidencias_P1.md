@@ -1,4 +1,17 @@
 Análisis de hotel-reservas-ia (FancyHotel)
+
+Analiza este proyecto sin modificar ningún archivo. Quiero:
+
+Stack tecnológico exacto (lenguaje y versión, frameworks de backend y frontend con versiones)
+Estructura de carpetas y responsabilidad de cada archivo
+Esquema de la base de datos: tablas, llaves y relaciones
+Lista de todos los endpoints con método HTTP y propósito
+Flujo completo de una reserva, desde la búsqueda hasta el pago
+Problemas de seguridad, bugs y deuda técnica, indicando archivo y línea
+Qué funcionalidad existente podría reutilizarse para: un calendario de disponibilidad, pago con tarjeta guardada y gráficos de previsión de demanda
+
+
+
 No modifiqué ningún archivo. Solo hice lecturas y un script de prueba de rutas en el scratchpad. El código viene de un proyecto académico de 2016 (CS 4400, commit 6cab9d9). Lo único tuyo encima es la estructura de docs/ y la plantilla de PR.
 
 1. Stack tecnológico

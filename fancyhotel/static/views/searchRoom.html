@@ -1,113 +1,146 @@
-<div ng-hide="{{loggedInBool}}" important>
-    <h1>You aren't logged in yet! Please <a href="#/login">login</a> to view this page.</h1>
+<div class="card-ui state-card" ng-hide="{{loggedInBool}}">
+    <span class="state-icon"><span class="glyphicon glyphicon-lock"></span></span>
+    <h2>You aren't logged in yet!</h2>
+    <p>Please <a href="#/login">login</a> to view this page.</p>
 </div>
-<div ng-show="{{loggedInBool}}" important>
-    <h1>Hello {{currentUser}} ! </h1>
-    <br />
+<div ng-show="{{loggedInBool}}">
     <div ng-show="{{userType=='customer'}}">
+        <a class="back-link" href="#/portal"><span class="glyphicon glyphicon-chevron-left"></span>Return to the portal page</a>
+
         <div ng-hide="confirmationPage">
-            <h1>Search Room</h1>
-            <div >
+            <div class="page-head">
+                <span class="eyebrow">Hello {{currentUser}}!</span>
+                <h1>Search Room</h1>
+                <p class="subtitle">Pick a location, room type and dates. Fully booked nights are crossed out in the calendar.</p>
+            </div>
+
+            <div class="card-ui">
                 <!--ng-hide="hideForm"-->
                 <form ng-submit="submit()">
-                    <div class="container">
-                        <div class="form-group">
-                            <label for="location">Location:</label>
-                            <select class="form-control" ng-model="location" ng-change="loadAvailability()" ng-required="true">
-                                <option value="Atlanta" selected="selected">Atlanta</option>
-                                <option value="Charlotte">Charlotte</option>
-                                <option value="Savannah">Savannah</option>
-                                <option value="Orlando">Orlando</option>
-                                <option value="Miami">Miami</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="roomType">Room Type:</label>
-                            <select class="form-control" id="roomType" ng-model="roomType" ng-change="loadAvailability()" ng-required="true">
-                                <option value="Standard">Standard</option>
-                                <option value="Family">Family</option>
-                                <option value="Suite">Suite</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="startDatePicker">Start Date:</label>
-                            <div class='input-group date' id='startDatePicker'>
-                                <input type="text" class="form-control" placeholder="Start Date" required>
-                                <span class="input-group-addon">
-                                <span class="glyphicon glyphicon-calendar"></span>
-                                </span>
+                    <div class="row">
+                        <div class="col-sm-6 col-md-3">
+                            <div class="form-group">
+                                <label for="location">Location</label>
+                                <select class="form-control" id="location" ng-model="location" ng-change="loadAvailability()" ng-required="true">
+                                    <option value="Atlanta" selected="selected">Atlanta</option>
+                                    <option value="Charlotte">Charlotte</option>
+                                    <option value="Savannah">Savannah</option>
+                                    <option value="Orlando">Orlando</option>
+                                    <option value="Miami">Miami</option>
+                                </select>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label for="endDatePicker">End Date:</label>
-                            <div class='input-group date' id='endDatePicker'>
-                                <input type="text" class="form-control" placeholder="End Date" required>
-                                <span class="input-group-addon">
-                                <span class="glyphicon glyphicon-calendar"></span>
-                                </span>
+                        <div class="col-sm-6 col-md-3">
+                            <div class="form-group">
+                                <label for="roomType">Room Type</label>
+                                <select class="form-control" id="roomType" ng-model="roomType" ng-change="loadAvailability()" ng-required="true">
+                                    <option value="Standard">Standard</option>
+                                    <option value="Family">Family</option>
+                                    <option value="Suite">Suite</option>
+                                </select>
                             </div>
                         </div>
-                        <h2>{{error}}</h2>
-                        <button type="submit" class="btn btn-default">Search for Available Rooms</button>
+                        <div class="col-sm-6 col-md-3">
+                            <div class="form-group">
+                                <label for="startDatePicker">Start Date</label>
+                                <div class='input-group date' id='startDatePicker'>
+                                    <input type="text" class="form-control" placeholder="Start Date" required>
+                                    <span class="input-group-addon">
+                                    <span class="glyphicon glyphicon-calendar"></span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-3">
+                            <div class="form-group">
+                                <label for="endDatePicker">End Date</label>
+                                <div class='input-group date' id='endDatePicker'>
+                                    <input type="text" class="form-control" placeholder="End Date" required>
+                                    <span class="input-group-addon">
+                                    <span class="glyphicon glyphicon-calendar"></span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                    <div class="alert alert-danger" ng-show="error"><span class="glyphicon glyphicon-exclamation-sign"></span>{{error}}</div>
+                    <button type="submit" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-search"></span>Search for Available Rooms</button>
                 </form>
             </div><!--Toggles the view of the form-->
-            <div ng-show="hideForm">
-                <h1>Rooms available from {{checkIn | date:'yyyy-MM-dd'}} to {{checkOut | date: 'yyyy-MM-dd'}} in {{location}}:</h1>
+
+            <div class="card-ui flush" ng-show="hideForm">
+                <h2 class="card-ui-title"><span class="glyphicon glyphicon-bed"></span>Rooms available from {{checkIn | date:'yyyy-MM-dd'}} to {{checkOut | date: 'yyyy-MM-dd'}} in {{location}}
+                    <span class="count">{{roomsAvailable.length}} rooms</span>
+                </h2>
                 <form ng-submit="bookRooms(selectedToken)">
-                    <table style="width:100%">
+                    <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
                         <tr>
-                            <th>Select Room</th>
+                            <th class="cell-check">Select</th>
                             <th>Room Number</th>
-                            <th>Capacity </th>
-                            <th>Room Type </th>
-                            <th>Room Price </th>
-                            <th>Extra Bed Price</th>
-                            <th>Select Extra Bed</th>
+                            <th>Capacity</th>
+                            <th>Room Type</th>
+                            <th class="num">Room Price</th>
+                            <th class="num">Extra Bed Price</th>
+                            <th class="cell-check">Extra Bed</th>
                         </tr>
-                        <tr  ng-repeat="room in roomsAvailable">
-                            <td>
-                                <input name="roomSelection" type="checkbox" ng-value="room" ng-model="selectedRooms[room.location+room.room_number]"/>
+                        </thead>
+                        <tbody>
+                        <tr ng-repeat="room in roomsAvailable">
+                            <td class="cell-check">
+                                <input name="roomSelection" type="checkbox" ng-value="room" ng-model="selectedRooms[room.location+room.room_number]" aria-label="Select room {{room.room_number}}"/>
                             </td>
-                            <td>{{room.room_number}}</td>
-                            <td>{{room.capacity}} </td>
-                            <td>{{room.room_type}} </td>
-                            <td>{{room.cost}} </td>
-                            <td>{{room.extra_bed_price}}</td>
-                            <td>
-                                <input name="extraBedSelection" type="checkbox" ng-value="extraBed" ng-model="extra_beds[room.location+room.room_number]" /> 
+                            <td><strong>#{{room.room_number}}</strong></td>
+                            <td><span class="glyphicon glyphicon-user muted"></span> {{room.capacity}}</td>
+                            <td><span class="pill">{{room.room_type}}</span></td>
+                            <td class="num">{{room.cost | currency}}</td>
+                            <td class="num">{{room.extra_bed_price | currency}}</td>
+                            <td class="cell-check">
+                                <input name="extraBedSelection" type="checkbox" ng-value="extraBed" ng-model="extra_beds[room.location+room.room_number]" aria-label="Extra bed for room {{room.room_number}}"/>
                             </td>
                         </tr>
+                        </tbody>
                     </table>
-                    <br />
-                    <br />
-                    <b>Estimated total cost:</b> <span> ${{total_cost}}</span> <a class="btn btn-primary" href="javascript:void(0);" ng-click="updateTotalCost()">Update total cost</a>
-                    <br /><small>The final price is calculated by the hotel when you book.</small><br /><br />
-                    <div ng-show="defaultCard">
-                        <button type="button" class="btn btn-primary" ng-click="bookRooms()">Reservar con tarjeta &bull;&bull;&bull;&bull; {{defaultCard.last4}}</button>
-                        <br /><br />
                     </div>
-                    <div ng-show="creditCards.length > 0">
-                        <b>{{defaultCard ? 'Or pay with another saved card:' : 'Select credit card:'}}</b>
-                        <select ng-model="selectedToken" ng-options="card.token as ('•••• ' + card.last4 + ' (expires ' + card.expiration_date + ')') for card in creditCards"></select>
-                        <button type="submit" class="btn btn-default">Book with selected card</button>
+
+                    <div class="card-ui-body">
+                        <div class="total-bar">
+                            <div>
+                                <small>Estimated total cost</small>
+                                <span class="total-amount">{{total_cost | currency}}</span>
+                                <small>The final price is calculated by the hotel when you book.</small>
+                            </div>
+                            <button type="button" class="btn btn-default" ng-click="updateTotalCost()"><span class="glyphicon glyphicon-refresh"></span>Update total cost</button>
+                        </div>
+
+                        <div class="default-pay" ng-show="defaultCard">
+                            <button type="button" class="btn btn-primary btn-lg" ng-click="bookRooms()"><span class="glyphicon glyphicon-flash"></span>Reservar con tarjeta &bull;&bull;&bull;&bull; {{defaultCard.last4}}</button>
+                        </div>
+                        <div ng-show="creditCards.length > 0" class="form-group">
+                            <label>{{defaultCard ? 'Or pay with another saved card:' : 'Select credit card:'}}</label>
+                            <div class="pay-row">
+                                <select class="form-control" ng-model="selectedToken" ng-options="card.token as ('•••• ' + card.last4 + ' (expires ' + card.expiration_date + ')') for card in creditCards"></select>
+                                <button type="submit" class="btn btn-default"><span class="glyphicon glyphicon-credit-card"></span>Book with selected card</button>
+                            </div>
+                        </div>
+                        <p class="muted mb-0">No credit card? Add one <a href="#/payment">here</a>.</p>
                     </div>
-                    <br />
-                    No credit card? Add one <a href="#/payment">here</a>.
                 </form>
             </div> <!--available room selection div-->
-            
 
         </div><!--Toggles showing the search rooms page-->
-        <div ng-show="confirmationPage">
-            <h1>Confirmation</h1><br />
 
-            <b>Confirmation Reservation ID:</b> {{confirmationData.id}}
+        <div class="card-ui state-card success" ng-show="confirmationPage">
+            <span class="state-icon"><span class="glyphicon glyphicon-ok"></span></span>
+            <h2>Confirmation</h2>
+            <p>Your reservation is confirmed. Keep this ID to update or cancel it.</p>
+            <p><span class="muted">Confirmation Reservation ID:</span> <span class="pill pill-success pill-lg">{{confirmationData.id}}</span></p>
+            <p><a class="btn btn-default" href="#/portal">Return to the portal page</a></p>
         </div> <!--confirmation page div-->
 
-<a href="#/portal">Return to the portal page</a>
     </div><!--Toggles the view based on if you're a customer-->
 </div><!--Toggles the view based on if you're logged in-->
-<div ng-show="{{userType=='manager'}}">
-    Only customers can search for and reserve rooms. Please login to a customer account to access this page.
+<div class="alert alert-warning" ng-show="{{userType=='manager'}}">
+    <span class="glyphicon glyphicon-info-sign"></span>Only customers can search for and reserve rooms. Please login to a customer account to access this page.
 </div>

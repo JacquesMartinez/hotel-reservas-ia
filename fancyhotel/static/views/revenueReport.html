@@ -1,47 +1,63 @@
-
-
-<div ng-hide="{{loggedInBool}}" important>
-	<h1>You aren't logged in yet! Please <a href="#/login">login</a> to view this page.</h1>
+<div class="card-ui state-card" ng-hide="{{loggedInBool}}">
+	<span class="state-icon"><span class="glyphicon glyphicon-lock"></span></span>
+	<h2>You aren't logged in yet!</h2>
+	<p>Please <a href="#/login">login</a> to view this page.</p>
 </div>
 
-<div ng-show="{{loggedInBool}}" important>
-<h1>Hello {{currentUser}} ! </h1><br />
+<div ng-show="{{loggedInBool}}">
+<a class="back-link" href="#/portal"><span class="glyphicon glyphicon-chevron-left"></span>Return to the portal page</a>
 
-<div ng-show="{{userType=='customer'}}">
-  Only managers can vew reports. Please login to a manager account to view this page.
+<div class="page-head">
+	<span class="eyebrow">Hello {{currentUser}}!</span>
+	<h1>Revenue Report</h1>
+	<p class="subtitle">By check-in month. Cancelled reservations are not included.</p>
+</div>
+
+<div class="alert alert-warning" ng-show="{{userType=='customer'}}">
+	<span class="glyphicon glyphicon-info-sign"></span>Only managers can vew reports. Please login to a manager account to view this page.
 </div>
 
 <div ng-show="{{userType=='manager'}}">
-	<h2>Revenue Report</h2>
 
-<form class="form-inline" ng-submit="loadReports()">
-  <div class="form-group">
-    <label for="revenueFrom">From</label>
-    <input type="date" id="revenueFrom" class="form-control" ng-model="range.from" required>
-  </div>
-  <div class="form-group">
-    <label for="revenueTo">To</label>
-    <input type="date" id="revenueTo" class="form-control" ng-model="range.to" required>
-  </div>
-  <button type="submit" class="btn btn-default">Update</button>
-</form>
-<p class="help-block">By check-in month. Cancelled reservations are not included.</p>
-
-<p ng-hide="hasData(revenueReport)">No reservations in this period.</p>
-
-<ul ng-repeat="(month, locgroup) in revenueReport">
-  <li>{{formatMonth(month)}}</li>
-  <ul ng-repeat="(location, cost) in locgroup">
-    <li >{{location}}: {{cost | currency}}</li>
-    </li>
-  </ul>
-</ul>
-
-
-
-
-
+<div class="card-ui filter-bar">
+	<form ng-submit="loadReports()">
+		<div class="row">
+			<div class="col-sm-5 col-md-4">
+				<div class="form-group">
+					<label for="revenueFrom">From</label>
+					<input type="date" id="revenueFrom" class="form-control" ng-model="range.from" required>
+				</div>
+			</div>
+			<div class="col-sm-5 col-md-4">
+				<div class="form-group">
+					<label for="revenueTo">To</label>
+					<input type="date" id="revenueTo" class="form-control" ng-model="range.to" required>
+				</div>
+			</div>
+			<div class="col-sm-2 col-md-2 form-group">
+				<label class="hidden-xs">&nbsp;</label>
+				<button type="submit" class="btn btn-primary btn-block btn-field"><span class="glyphicon glyphicon-refresh"></span>Update</button>
+			</div>
+		</div>
+	</form>
 </div>
 
-<a href="#/portal">Return to the portal page</a>
+<div class="card-ui empty-inline" ng-hide="hasData(revenueReport)">
+	<span class="glyphicon glyphicon-inbox"></span>
+	No reservations in this period.
+</div>
+
+<div class="report-grid">
+	<div class="card-ui" ng-repeat="(month, locgroup) in revenueReport">
+		<h3 class="card-ui-title"><span class="glyphicon glyphicon-usd"></span>{{formatMonth(month)}}</h3>
+		<ul class="kv-list">
+			<li ng-repeat="(location, cost) in locgroup">
+				<span>{{location}}</span>
+				<span class="kv-value">{{cost | currency}}</span>
+			</li>
+		</ul>
+	</div>
+</div>
+
+</div>
 </div>

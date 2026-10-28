@@ -1,79 +1,102 @@
-<h1>Cancel Existing Reservation</h1>
+<a class="back-link" href="#/portal" ng-show="{{userType=='customer'}}"><span class="glyphicon glyphicon-chevron-left"></span>Return to the portal page</a>
 
-<div ng-hide="{{loggedInBool}}" important>
-	<h1>You aren't logged in yet! Please <a href="#/login">login</a> to view this page.</h1>
+<div class="page-head">
+	<span class="eyebrow" ng-show="{{userType=='customer'}}">Hello {{currentUser}}!</span>
+	<h1>Cancel Existing Reservation</h1>
+</div>
+
+<div class="card-ui state-card" ng-hide="{{loggedInBool}}">
+	<span class="state-icon"><span class="glyphicon glyphicon-lock"></span></span>
+	<h2>You aren't logged in yet!</h2>
+	<p>Please <a href="#/login">login</a> to view this page.</p>
 </div>
 
 
 <div ng-show="{{userType=='customer'}}">
-Hello {{currentUser}}!<br />
 
+<div class="card-ui" ng-show="cancelView1">
+	<h2 class="card-ui-title"><span class="step">1</span>Find your reservation</h2>
+	<p class="muted">Want to cancel a reservation? Please provide your Reservation ID number.</p>
 
-<div ng-show="cancelView1">
-Want to cancel a reservation? Please provide your Reservation ID number.
+	<form role="form" ng-submit="findReservation()">
+		<div class="row">
+			<div class="col-sm-8 col-md-6">
+				<div class="form-group">
+					<label for="resID">Reservation ID</label>
+					<input class="form-control" id="resID" placeholder="Reservation ID" ng-model="resID" required>
+				</div>
+			</div>
+			<div class="col-sm-4 col-md-3 form-group">
+				<label class="hidden-xs">&nbsp;</label>
+				<button type="submit" class="btn btn-primary btn-block btn-field"><span class="glyphicon glyphicon-search"></span>Find My Reservation</button>
+			</div>
+		</div>
+	</form>
 
-<form class="form-inline" role="form" ng-submit="findReservation()">
-    <div class="form-group">
-      <label for="resID">Reservation ID:</label>
-      <input class="form-control" placeholder="Reservation ID" ng-model="resID" required>
-    </div>
-    <button type="submit" class="btn btn-default">Find My Reservation</button>
-</form>
-
-Haven't reserved a room yet? <a href="#/searchroom">Search for available rooms here.</a><br /><br />
+	<div class="card-ui-footer muted">Haven't reserved a room yet? <a href="#/searchroom">Search for available rooms here.</a></div>
 </div> <!--cancelView1 div-->
 
 
 <div ng-show="cancelView2">
 
-<div class="form-group">
+<div class="card-ui flush">
+	<h2 class="card-ui-title"><span class="glyphicon glyphicon-list-alt"></span>Reservation #{{resID}}
+		<span class="count">{{currRes.checkin_date}} &rarr; {{currRes.checkout_date}}</span>
+	</h2>
+	<div class="table-responsive">
+	<table class="table">
+		<thead>
+		<tr>
+			<th>Check-in Date</th><th>Check-out Date</th><th>Room Type</th><th>Room Capacity</th><th>Extra Bed</th><th class="num">Extra Bed Cost per Night</th><th class="num">Room Cost per Night</th>
+		</tr>
+		</thead>
+		<tbody>
+		<tr ng-repeat="room in currRes.rooms">
+			<td>{{currRes.checkin_date}}</td>
+			<td>{{currRes.checkout_date}}</td>
+			<td><span class="pill">{{currRes.rooms[$index].room_type}}</span></td>
+			<td>{{currRes.rooms[$index].capacity}}</td>
+			<td>{{currRes.rooms[$index].extra_bed_or_not==1 ? 'Yes' : 'No'}}</td>
+			<td class="num">{{currRes.rooms[$index].extra_bed_price | currency}}</td>
+			<td class="num">{{currRes.rooms[$index].cost | currency}}</td>
+		</tr>
+		</tbody>
+	</table>
+	</div>
+</div>
 
-
-Viewing reservation for reservation ID number {{resID}}.<br /><br />
-
-
-<table style="width:100%" >
-  <tr>
-    <th>Check-in Date</th><th>Check-out Date</th><th>Room Type</th><th>Room Capacity</th><th>Extra Bed</th><th>Extra Bed Cost per Night</th><th>Room Cost per Night</th>
-  </tr>
-  <tr ng-repeat="room in currRes.rooms">
-    <td>{{currRes.checkin_date}}</td>
-    <td>{{currRes.checkout_date}}</td>
-    <td>{{currRes.rooms[$index].room_type}}</td>
-    <td>{{currRes.rooms[$index].capacity}}</td>
-    <td>{{currRes.rooms[$index].extra_bed_or_not==1}}</td>
-    <td>{{currRes.rooms[$index].extra_bed_price}}</td>
-    <td>{{currRes.rooms[$index].cost}}</td>
-  </tr>
-</table><br />
-
-
-
-Current checkin date: {{currRes.checkin_date}}<br />
-Current checkout date: {{currRes.checkout_date}}<br />
-
-</div> 
-<b>Cancellation policy:</b><br />
-<ul>
-<li>For any cancellation made one day before the start date - the customer is not refunded anything.</li>
-<li>For any cancellations made within 3 day window with respect to the start date - 20% of total reservation cost is forfeited and the rest 80% refunded to the customer.</li>
-<li>If the cancellation is made earlier than 3 days before the start date -full 100% refund is given.</li>
-</ul>
-
-<br /><br />
-	Total cost of reservation : ${{cancel_cost}} <br />
-	Cancellation Date : {{today | date: 'yyyy-MM-dd'}} (today)<br />
-	Refunded amount: ${{refund_amount}}<br />
-<form ng-submit="cancelReservation()">
-	<button type="submit" class="btn btn-default">Cancel Reservation</button>
-</form>
+<div class="row">
+	<div class="col-md-6">
+		<div class="card-ui">
+			<h2 class="card-ui-title"><span class="glyphicon glyphicon-info-sign"></span>Cancellation policy</h2>
+			<ul class="policy-list">
+				<li><span class="pill pill-danger">0%</span><span>For any cancellation made one day before the start date - the customer is not refunded anything.</span></li>
+				<li><span class="pill pill-accent">80%</span><span>For any cancellations made within 3 day window with respect to the start date - 20% of total reservation cost is forfeited and the rest 80% refunded to the customer.</span></li>
+				<li><span class="pill pill-success">100%</span><span>If the cancellation is made earlier than 3 days before the start date -full 100% refund is given.</span></li>
+			</ul>
+		</div>
+	</div>
+	<div class="col-md-6">
+		<div class="card-ui">
+			<h2 class="card-ui-title"><span class="step">2</span>Review and cancel</h2>
+			<div class="stat-grid">
+				<div class="stat"><span class="stat-label">Current checkin date</span><span class="stat-value">{{currRes.checkin_date}}</span></div>
+				<div class="stat"><span class="stat-label">Current checkout date</span><span class="stat-value">{{currRes.checkout_date}}</span></div>
+				<div class="stat"><span class="stat-label">Total cost of reservation</span><span class="stat-value">${{cancel_cost}}</span></div>
+				<div class="stat"><span class="stat-label">Cancellation Date (today)</span><span class="stat-value">{{today | date: 'yyyy-MM-dd'}}</span></div>
+				<div class="stat highlight"><span class="stat-label">Refunded amount</span><span class="stat-value">${{refund_amount}}</span></div>
+			</div>
+			<form ng-submit="cancelReservation()">
+				<button type="submit" class="btn btn-danger btn-lg btn-block"><span class="glyphicon glyphicon-remove"></span>Cancel Reservation</button>
+			</form>
+		</div>
+	</div>
+</div>
 
 </div> <!--The CancelView2 Div-->
 
-
-<a href="#/portal">Return to the portal page</a>
 </div>
 
-<div ng-show="{{userType=='manager'}}">
-  Only customers can update reservations. Please login to your customer account to view this page.
+<div class="alert alert-warning" ng-show="{{userType=='manager'}}">
+	<span class="glyphicon glyphicon-info-sign"></span>Only customers can update reservations. Please login to your customer account to view this page.
 </div>

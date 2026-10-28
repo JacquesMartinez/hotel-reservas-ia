@@ -1,6 +1,6 @@
 # Decisiones tomadas por humanos
 
-## D-01: Título corto
+## D-00: Título corto
 - **Fecha / Issue:**
 - **Contexto:** qué problema había
 - **Propuesta de la IA:**
@@ -73,3 +73,4 @@
 - **Decisión del equipo:** Aceptada en su totalidad.
 - **Justificación:** Mantiene los secretos fuera del control de versiones y documenta qué variables necesita el proyecto.
 - **Rechazado de la IA (si aplica):** No aplica.
+

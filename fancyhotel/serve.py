@@ -37,6 +37,7 @@ api.add_resource(restapi.CancelReservationResource, '/api/reservation/<string:re
 api.add_resource(restapi.ReservationReportResource, '/api/reports/reservation')
 api.add_resource(restapi.PopularRoomReportResource, '/api/reports/popularRoom')
 api.add_resource(restapi.RevenueReportResource, '/api/reports/revenue')
+api.add_resource(restapi.ForecastReportResource, '/api/reports/forecast')
 api.add_resource(restapi.GetReservationByCardNumberResource, '/api/reservation/cardNumber')
 
 

@@ -3,7 +3,7 @@ from flask import session
 import re
 from flask_restful import Resource, reqparse, abort, request, inputs
 import db #instantiates the database so we don't have to do that in here
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 
 def login_required(method):
@@ -52,6 +52,63 @@ def validate_card(card_number, cvv, expiration_date):
 	if expires < date.today():
 		return None, ({"message": "This card has expired", "result": False}, 400)
 	return card_number[-4:], None
+
+def parse_date_range():
+	#optional from/to query parameters, both inclusive (D-09); returns ((from, to), None) or (None, error response)
+	parser = reqparse.RequestParser()
+	parser.add_argument('from', type=str, location='args')
+	parser.add_argument('to', type=str, location='args')
+	args = parser.parse_args()
+	try:
+		fromDate = datetime.strptime(args['from'], "%Y-%m-%d").date() if args['from'] else None
+		toDate = datetime.strptime(args['to'], "%Y-%m-%d").date() if args['to'] else None
+	except ValueError:
+		return None, ({"message": "Dates must use the format YYYY-MM-DD", "result": False}, 400)
+	if fromDate and toDate and fromDate > toDate:
+		return None, ({"message": "The start date must not be after the end date", "result": False}, 400)
+	return (fromDate, toDate), None
+
+
+FORECAST_AVERAGE_WEEKS = 4
+FORECAST_METHOD = ("Occupancy is the room-nights booked (cancelled reservations excluded) divided by rooms x 7, "
+	"for each Monday-Sunday week. Each forecast week takes the average occupancy of the last 4 complete weeks, "
+	"or what is already booked for that week if it is higher. Suggested price: +15 % at 80 % occupancy or more, "
+	"-10 % at 30 % or less, no change otherwise.")
+
+def week_occupancy(total_rooms, stays, week_start):
+	#a stay occupies the nights checkin <= night < checkout, so a stay across two weeks adds its nights to each one
+	if not total_rooms:
+		return 0
+	week_end = week_start + timedelta(days=7)
+	nights = sum(max(0, (min(checkout, week_end) - max(checkin, week_start)).days) for checkin, checkout in stays)
+	return round(nights / (total_rooms * 7.0), 4) #rounded so float noise doesn't cross the price thresholds
+
+def price_change_pct(occupancy):
+	if occupancy >= 0.8:
+		return 15
+	if occupancy <= 0.3:
+		return -10
+	return 0
+
+def build_forecast(location, total_rooms, stays, today, weeks, history_weeks):
+	#history: the complete weeks before the current one; forecast: from next Monday on
+	current_monday = today - timedelta(days=today.weekday())
+	history = []
+	for k in range(history_weeks, 0, -1):
+		week_start = current_monday - timedelta(days=7 * k)
+		history.append({"week_start": week_start.isoformat(), "occupancy": week_occupancy(total_rooms, stays, week_start)})
+
+	recent = [week["occupancy"] for week in history[-FORECAST_AVERAGE_WEEKS:]]
+	average = round(sum(recent) / len(recent), 4) if recent else 0
+
+	forecast = []
+	for k in range(1, weeks + 1):
+		week_start = current_monday + timedelta(days=7 * k)
+		booked = week_occupancy(total_rooms, stays, week_start)
+		occupancy = max(average, booked)
+		forecast.append({"week_start": week_start.isoformat(), "occupancy": occupancy, "booked": booked, "price_change_pct": price_change_pct(occupancy)})
+
+	return {"location": location, "history": history, "forecast": forecast, "method": FORECAST_METHOD}
 
 #every method of a class has to have (self)
 class NewUserRegistrationResource(Resource):
@@ -394,7 +451,10 @@ class ReservationReportResource(Resource):
 	method_decorators = [manager_required]
 
 	def get(self):
-		return db.mysqldb.reservation_report()
+		dates, error = parse_date_range()
+		if error:
+			return error
+		return db.mysqldb.reservation_report(*dates)
 
 class PopularRoomReportResource(Resource):
 	method_decorators = [manager_required]
@@ -406,7 +466,33 @@ class RevenueReportResource(Resource):
 	method_decorators = [manager_required]
 
 	def get(self):
-		return db.mysqldb.revenue_report()
+		dates, error = parse_date_range()
+		if error:
+			return error
+		return db.mysqldb.revenue_report(*dates)
+
+class ForecastReportResource(Resource):
+	method_decorators = [manager_required]
+
+	def __init__(self):
+		self.reqparse = reqparse.RequestParser()
+		self.reqparse.add_argument('location', type=str, required=True, help="Please select a location", location='args')
+		self.reqparse.add_argument('weeks', type=inputs.int_range(1, 52), default=8, location='args', help="weeks must be between 1 and 52")
+		self.reqparse.add_argument('history_weeks', type=inputs.int_range(1, 52), default=12, location='args', help="history_weeks must be between 1 and 52")
+		super(ForecastReportResource, self).__init__()
+
+	def get(self):
+		args = self.reqparse.parse_args()
+		if not args['location'].strip():
+			return {"message": "Please select a location", "result": False}, 400
+		today = date.today()
+		current_monday = today - timedelta(days=today.weekday())
+		#one query for the whole period: the oldest history week up to the end of the last forecast week
+		total_rooms, stays = db.mysqldb.get_room_stays(
+			args['location'],
+			current_monday - timedelta(days=7 * args['history_weeks']),
+			current_monday + timedelta(days=7 * (args['weeks'] + 1)))
+		return build_forecast(args['location'], total_rooms, stays, today, args['weeks'], args['history_weeks'])
 
 class GetReservationByCardNumberResource(Resource):
 	method_decorators = [login_required]

@@ -22,6 +22,13 @@ def test_seed_reservations_cover_a_year_without_overlaps():
 			assert previous['checkout_date'] <= current['checkin_date']
 
 
+def test_seed_created_at_is_before_checkin_and_never_in_the_future():
+	today = date(2026, 10, 28)
+	for r in seed.build_reservations(random.Random(seed.RANDOM_SEED), today):
+		assert 1 <= (r['checkin_date'] - r['created_at']).days <= 60
+		assert r['created_at'] <= today
+
+
 def test_seed_cards_belong_to_the_reservation_owner():
 	reservations = seed.build_reservations(random.Random(seed.RANDOM_SEED), date(2026, 10, 28))
 	for r in reservations:

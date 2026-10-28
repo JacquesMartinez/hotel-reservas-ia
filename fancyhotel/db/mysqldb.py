@@ -110,12 +110,24 @@ class MysqlManager(object):
 				 	card_number char(16) DEFAULT NULL,
 				 	cancelled_or_not char(1) NOT NULL DEFAULT '0',
 				 	#cancelled_date date DEFAULT NULL,
+				 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 				 	PRIMARY KEY (reservation_id),
 				 	FOREIGN KEY (username) REFERENCES Fancy_Hotel.Customer (username),
 				 	FOREIGN KEY (card_number) REFERENCES Fancy_Hotel.Credit_Card (card_number) ON DELETE SET NULL
 				);'''
 			)
-			
+
+			#tables created before created_at existed: MySQL has no ADD COLUMN IF NOT EXISTS, so check information_schema
+			cursor.execute(
+				'''SELECT COUNT(*) FROM information_schema.COLUMNS
+				WHERE TABLE_SCHEMA = 'Fancy_Hotel' AND TABLE_NAME = 'Reservation' AND COLUMN_NAME = 'created_at';'''
+			)
+			if not cursor.fetchall()[0][0]:
+				cursor.execute(
+					'''ALTER TABLE Fancy_Hotel.Reservation
+					ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;'''
+				)
+
 
 			cursor.execute(
 				'''CREATE TABLE IF NOT EXISTS Fancy_Hotel.Room (
@@ -311,9 +323,10 @@ class MysqlManager(object):
 	def get_reservation(self, username, reservation_id, include_cancelled):
 		cursor = self.connection.cursor()
 		try:
+			#explicit columns: the unpacking below breaks if new columns (created_at) come with SELECT *
 			if include_cancelled:
 				cursor.execute(
-					'''SELECT *
+					'''SELECT reservation_id, checkin_date, checkout_date, total_cost, username, card_number, cancelled_or_not
 					FROM Fancy_Hotel.Reservation
 					WHERE reservation_id = %(reservation_id)s AND username = %(username)s
 					''',
@@ -321,7 +334,7 @@ class MysqlManager(object):
 				)
 			else:
 				cursor.execute(
-					'''SELECT *
+					'''SELECT reservation_id, checkin_date, checkout_date, total_cost, username, card_number, cancelled_or_not
 					FROM Fancy_Hotel.Reservation
 					WHERE reservation_id = %(reservation_id)s AND username = %(username)s AND cancelled_or_not = 0
 					''',
@@ -496,6 +509,36 @@ class MysqlManager(object):
 			return occupied
 		finally:
 			cursor.close()
+
+	def get_room_stays(self, location, from_date, to_date):
+		#returns (rooms in the location, [(checkin, checkout)]) with one stay per reserved room that overlaps [from_date, to_date)
+		cursor = self.connection.cursor()
+		try:
+			cursor.execute(
+				'''SELECT COUNT(*)
+				FROM Fancy_Hotel.Room
+				WHERE location = %(location)s
+				''',
+				{'location': location}
+			)
+			total_rooms = cursor.fetchall()[0][0]
+
+			#all the reservations of the period in one query; cancelled ones occupy nothing
+			cursor.execute(
+				'''SELECT res.checkin_date, res.checkout_date
+				FROM Fancy_Hotel.Reserves_Extra_Bed AS bed
+				JOIN Fancy_Hotel.Reservation AS res
+				ON res.reservation_id = bed.reservation_id
+				WHERE bed.location = %(location)s
+					AND res.checkin_date < %(toDate)s
+					AND res.checkout_date > %(fromDate)s
+					AND res.cancelled_or_not = 0
+				''',
+				{'location': location, 'fromDate': from_date, 'toDate': to_date}
+			)
+			return total_rooms, cursor.fetchall()
+		finally:
+			cursor.close()
 	
 	def add_credit_card(self, username, last4, card_name, expiration_date, make_default):
 		#card_number stores a token generated here; the real number never reaches the database (D-08)
@@ -591,7 +634,7 @@ class MysqlManager(object):
 		cursor = self.connection.cursor()
 		try:
 			cursor.execute('''
-				SELECT *
+				SELECT reservation_id, checkin_date, checkout_date, total_cost, username, card_number, cancelled_or_not
 				FROM Fancy_Hotel.Reservation
 				WHERE card_number = %(card_number)s AND username = %(username)s;
 				''',
@@ -659,24 +702,31 @@ class MysqlManager(object):
 		finally:
 			cursor.close()
 
-	def reservation_report(self):
+	def reservation_report(self, from_date=None, to_date=None):
+		#{"YYYY-MM": {location: reservations}} by check-in month; from/to are inclusive and optional (D-09)
 		cursor = self.connection.cursor()
-		try:	
+		try:
+			#a reservation with several rooms is still one reservation (B9)
 			cursor.execute(
-				'''SELECT MONTH(checkin_date), bed.location, count(*) 
+				'''SELECT YEAR(res.checkin_date), MONTH(res.checkin_date), bed.location, COUNT(DISTINCT res.reservation_id)
 				FROM Fancy_Hotel.Reservation AS res
 				JOIN (Fancy_Hotel.Reserves_Extra_Bed AS bed)
 				ON res.reservation_id = bed.reservation_id
-				WHERE Month(res.checkin_date) = 8 or Month(res.checkin_date) = 9
-				GROUP BY MONTH(checkin_date), bed.location
-				'''
+				WHERE res.cancelled_or_not = 0
+					AND (%(fromDate)s IS NULL OR res.checkin_date >= %(fromDate)s)
+					AND (%(toDate)s IS NULL OR res.checkin_date <= %(toDate)s)
+				GROUP BY YEAR(res.checkin_date), MONTH(res.checkin_date), bed.location
+				ORDER BY 1, 2, 3
+				''',
+				{'fromDate': from_date, 'toDate': to_date}
 			)
 			rows = cursor.fetchall()
 			report = {}
-			for month, location, count in rows:
-				if month not in report:
-					report[month] = {}
-				report[month][location] = count
+			for year, month, location, count in rows:
+				key = '%04d-%02d' % (year, month)
+				if key not in report:
+					report[key] = {}
+				report[key][location] = count
 
 			return report
 
@@ -724,26 +774,35 @@ class MysqlManager(object):
 		finally:
 			cursor.close()
 
-	def revenue_report(self):
+	def revenue_report(self, from_date=None, to_date=None):
+		#{"YYYY-MM": {location: revenue}} by check-in month; from/to are inclusive and optional (D-09)
 		cursor = self.connection.cursor()
 		try:
+			#the subquery leaves one row per reservation and location, so a reservation with several rooms is added once (B8)
+			#SUM(DISTINCT total_cost) would instead merge different reservations with the same total
 			cursor.execute(
-				'''SELECT Month(res.checkin_date) as month, 
-				room.location as location, 
-				SUM(res.total_cost)
-				FROM Fancy_Hotel.Room as room
-				JOIN (Fancy_Hotel.Reserves_Extra_Bed as bed, Fancy_Hotel.Reservation as res)
-				ON room.location = bed.location AND room.room_number = bed.room_number AND res.reservation_id = bed.reservation_id
-				WHERE Month(res.checkin_date) = 8 or Month(res.checkin_date) = 9
-				GROUP BY Month(res.checkin_date), room.location;
-				'''
+				'''SELECT YEAR(stay.checkin_date), MONTH(stay.checkin_date), stay.location, SUM(stay.total_cost)
+				FROM (
+					SELECT DISTINCT res.reservation_id, bed.location, res.checkin_date, res.total_cost
+					FROM Fancy_Hotel.Reservation AS res
+					JOIN (Fancy_Hotel.Reserves_Extra_Bed AS bed)
+					ON res.reservation_id = bed.reservation_id
+					WHERE res.cancelled_or_not = 0
+						AND (%(fromDate)s IS NULL OR res.checkin_date >= %(fromDate)s)
+						AND (%(toDate)s IS NULL OR res.checkin_date <= %(toDate)s)
+				) AS stay
+				GROUP BY YEAR(stay.checkin_date), MONTH(stay.checkin_date), stay.location
+				ORDER BY 1, 2, 3
+				''',
+				{'fromDate': from_date, 'toDate': to_date}
 			)
 			rows = cursor.fetchall()
 			report = {}
-			for month, location, cost in rows:
-				if month not in report:
-					report[month] = {}
-				report[month][location] = cost
+			for year, month, location, cost in rows:
+				key = '%04d-%02d' % (year, month)
+				if key not in report:
+					report[key] = {}
+				report[key][location] = cost
 
 			return report
 		finally:

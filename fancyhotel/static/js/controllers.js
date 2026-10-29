@@ -49,6 +49,11 @@ resourceModule.factory('reservationFactory', function($resource){
 			method:'GET',
 			url: '/api/reservation/:reservation_id'
 		},
+		GetMyReservations:{
+			method:'GET',
+			url: '/api/reservations',
+			isArray: true
+		},
 		MakeReservation: {
 			method: 'POST',
 			url: '/api/reservation/create'	
@@ -263,7 +268,7 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 
 
 })
-.controller('reservationController', function($rootScope, $scope, $window, reservationFactory, paymentFactory){
+.controller('reservationController', function($rootScope, $scope, $window, $location, reservationFactory, paymentFactory){
 	$scope.creditCards; //the number for USING a card
 	$scope.creditCardNumber; //the number for ADDING a card
 	$scope.cardToDelete; //card you're trying to delete
@@ -673,7 +678,77 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 		return refund;
 	}
 
+	//"My reservations" links to the update and cancel views with ?id= so the reservation opens without typing its ID
+	var linkedId = $location.search().id;
+	if(linkedId && !$("#startDatePicker").length){
+		$scope.resID = linkedId;
+		$scope.findReservation();
+	}
 
+})
+
+.controller('myReservationsController', function($rootScope, $scope, reservationFactory){
+	$scope.loggedInBool = $rootScope.alreadyLoggedIn();
+	$scope.reservations = null; //null until the server answers, so "no reservations" does not flash
+	$scope.statusFilter = 'all';
+	var PAGE_SIZE = 10; //customers with a long history would get a huge page otherwise
+	$scope.visibleCount = PAGE_SIZE;
+	var today = moment().format('YYYY-MM-DD');
+
+	$scope.setFilter = function(status){
+		$scope.statusFilter = status;
+		$scope.visibleCount = PAGE_SIZE;
+	}
+
+	$scope.showMore = function(){
+		$scope.visibleCount += PAGE_SIZE;
+	}
+
+	//compared as YYYY-MM-DD strings so no timezone conversion can shift the day
+	$scope.status = function(reservation){
+		if(reservation.cancelled_or_not == '1'){
+			return 'cancelled';
+		}
+		if(reservation.checkout_date <= today){
+			return 'past';
+		}
+		if(reservation.checkin_date <= today){
+			return 'current';
+		}
+		return 'upcoming';
+	}
+
+	var statusLabels = {upcoming: 'Upcoming', current: 'In progress', past: 'Past', cancelled: 'Cancelled'};
+	$scope.statusLabel = function(reservation){
+		return statusLabels[$scope.status(reservation)];
+	}
+
+	$scope.nights = function(reservation){
+		return moment(reservation.checkout_date, 'YYYY-MM-DD').diff(moment(reservation.checkin_date, 'YYYY-MM-DD'), 'days');
+	}
+
+	$scope.formatDate = function(isoDate){
+		return moment(isoDate, 'YYYY-MM-DD').format('ddd, MMM D, YYYY');
+	}
+
+	$scope.count = function(status){
+		return ($scope.reservations || []).filter(function(reservation){
+			return status == 'all' || $scope.status(reservation) == status;
+		}).length;
+	}
+
+	$scope.matchesFilter = function(reservation){
+		return $scope.statusFilter == 'all' || $scope.status(reservation) == $scope.statusFilter;
+	}
+
+	if($rootScope.userType == 'customer'){
+		reservationFactory.GetMyReservations().$promise.then(function(data){
+			$scope.reservations = data;
+		}, function(errorData){
+			$scope.reservations = [];
+			window.alert(errorMessage(errorData, "Your reservations could not be loaded. Please try again."));
+		});
+	}
 })
 
 
@@ -1002,6 +1077,10 @@ angular.module('FancyHotelApp', ['ngRoute', 'ngResource', 'resourceModule'])
 	.when('/reserve', {
 		templateUrl: 'static/views/searchRoom.html',
 		controller: 'reservationController'
+	})
+	.when('/myReservations', {
+		templateUrl: 'static/views/myReservations.html',
+		controller: 'myReservationsController'
 	})
 	.when('/update', {
 		templateUrl: 'static/views/updateReservation.html',

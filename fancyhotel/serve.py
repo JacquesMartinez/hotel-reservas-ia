@@ -31,6 +31,7 @@ api.add_resource(restapi.LogoutResource, '/api/logout')
 api.add_resource(restapi.NewUserRegistrationResource, '/api/register')
 api.add_resource(restapi.SearchRoomsResource, '/api/searchRoom')
 api.add_resource(restapi.AvailabilityResource, '/api/availability')
+api.add_resource(restapi.MyReservationsResource, '/api/reservations')
 api.add_resource(restapi.CreateReservationResource, '/api/reservation/create')
 api.add_resource(restapi.UpdateReservationResource, '/api/reservation')
 api.add_resource(restapi.ReservationResource, '/api/reservation/<string:reservation_id>') #includes update_reservation

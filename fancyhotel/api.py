@@ -307,6 +307,12 @@ class ReservationResource(Resource):
 		else:
 			return {"message": message, "result": status}, 400
 
+class MyReservationsResource(Resource):
+	method_decorators = [login_required]
+
+	def get(self): #every reservation of the session user, cancelled ones included, latest check-in first
+		return db.mysqldb.get_reservations(session['username'])
+
 class UpdateReservationConfirmResource(Resource):
 	method_decorators = [login_required]
 

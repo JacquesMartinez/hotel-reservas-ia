@@ -1,0 +1,87 @@
+<div class="card-ui state-card" ng-hide="{{loggedInBool}}">
+	<span class="state-icon"><span class="glyphicon glyphicon-lock"></span></span>
+	<h2>You aren't logged in yet!</h2>
+	<p>Please <a href="#/login">login</a> to view this page.</p>
+</div>
+
+<div ng-show="{{userType=='customer'}}">
+<a class="back-link" href="#/portal"><span class="glyphicon glyphicon-chevron-left"></span>Return to the portal page</a>
+
+<div class="page-head page-head-actions">
+	<div>
+		<span class="eyebrow">Hello {{currentUser}}!</span>
+		<h1>My reservations</h1>
+		<p class="subtitle">All your stays, upcoming and past. Cancelled reservations show the amount that was charged.</p>
+	</div>
+	<a class="btn btn-primary" href="#/reserve"><span class="glyphicon glyphicon-plus"></span>New reservation</a>
+</div>
+
+<div class="card-ui empty-inline" ng-show="reservations === null">
+	<span class="glyphicon glyphicon-hourglass"></span>
+	Loading your reservations...
+</div>
+
+<div class="card-ui state-card" ng-show="reservations.length == 0">
+	<span class="state-icon"><span class="glyphicon glyphicon-calendar"></span></span>
+	<h2>You have no reservations yet</h2>
+	<p>When you book a room it will appear here.</p>
+	<p><a class="btn btn-primary" href="#/reserve">Make a new reservation</a></p>
+</div>
+
+<div ng-show="reservations.length > 0">
+	<div class="seg-tabs" role="tablist">
+		<button type="button" class="seg-tab" ng-class="{active: statusFilter == 'all'}" ng-click="setFilter('all')">All <span class="seg-count">{{count('all')}}</span></button>
+		<button type="button" class="seg-tab" ng-class="{active: statusFilter == 'upcoming'}" ng-click="setFilter('upcoming')">Upcoming <span class="seg-count">{{count('upcoming')}}</span></button>
+		<button type="button" class="seg-tab" ng-class="{active: statusFilter == 'current'}" ng-click="setFilter('current')">In progress <span class="seg-count">{{count('current')}}</span></button>
+		<button type="button" class="seg-tab" ng-class="{active: statusFilter == 'past'}" ng-click="setFilter('past')">Past <span class="seg-count">{{count('past')}}</span></button>
+		<button type="button" class="seg-tab" ng-class="{active: statusFilter == 'cancelled'}" ng-click="setFilter('cancelled')">Cancelled <span class="seg-count">{{count('cancelled')}}</span></button>
+	</div>
+
+	<div class="card-ui empty-inline" ng-show="count(statusFilter) == 0">
+		<span class="glyphicon glyphicon-inbox"></span>
+		No reservations in this group.
+	</div>
+
+	<div class="res-list">
+		<div class="card-ui res-card" ng-repeat="res in reservations | filter:matchesFilter | limitTo:visibleCount" ng-class="{'is-cancelled': status(res) == 'cancelled'}">
+			<div class="res-main">
+				<div class="res-head">
+					<span class="res-id">Reservation #{{res.reservation_id}}</span>
+					<span class="pill" ng-class="{'pill-success': status(res) == 'upcoming', 'pill-accent': status(res) == 'current', 'pill-muted': status(res) == 'past', 'pill-danger': status(res) == 'cancelled'}">{{statusLabel(res)}}</span>
+				</div>
+				<div class="res-dates">
+					<div><span class="stat-label">Check-in</span>{{formatDate(res.checkin_date)}}</div>
+					<span class="glyphicon glyphicon-arrow-right muted"></span>
+					<div><span class="stat-label">Check-out</span>{{formatDate(res.checkout_date)}}</div>
+					<span class="pill pill-muted">{{nights(res)}} {{nights(res) == 1 ? 'night' : 'nights'}}</span>
+				</div>
+				<ul class="res-rooms">
+					<li ng-repeat="room in res.rooms">
+						<span class="glyphicon glyphicon-bed muted"></span>
+						{{room.location}} &middot; Room #{{room.room_number}} <span class="pill">{{room.room_type}}</span>
+						<span class="muted" ng-show="room.extra_bed_or_not == 1">+ extra bed</span>
+					</li>
+				</ul>
+			</div>
+			<div class="res-side">
+				<span class="stat-label">{{status(res) == 'cancelled' ? 'Cancellation charge' : 'Total cost'}}</span>
+				<span class="res-total">{{res.total_cost | currency}}</span>
+				<span class="muted card-number" ng-show="res.card_last4">&bull;&bull;&bull;&bull; {{res.card_last4}}</span>
+				<div class="res-actions" ng-show="status(res) == 'upcoming'">
+					<a class="btn btn-default btn-sm" href="#/update?id={{res.reservation_id}}"><span class="glyphicon glyphicon-calendar"></span>Modify dates</a>
+					<a class="btn btn-default btn-sm btn-danger-ghost" href="#/cancel?id={{res.reservation_id}}"><span class="glyphicon glyphicon-remove"></span>Cancel</a>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="show-more" ng-show="count(statusFilter) > visibleCount">
+		<span class="muted">Showing {{visibleCount}} of {{count(statusFilter)}}</span>
+		<button type="button" class="btn btn-default" ng-click="showMore()"><span class="glyphicon glyphicon-chevron-down"></span>Show more</button>
+	</div>
+</div>
+</div>
+
+<div class="alert alert-warning" ng-show="{{userType=='manager'}}">
+	<span class="glyphicon glyphicon-info-sign"></span>Only customers have reservations. Please login to a customer account to view this page.
+</div>

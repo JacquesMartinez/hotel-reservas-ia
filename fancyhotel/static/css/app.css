@@ -393,6 +393,30 @@ textarea.form-control { height: auto; min-height: 110px; resize: vertical; }
 .review-item { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fcfcfd; }
 .review-item p { margin: 4px 0 0; color: #344054; }
 
+/* ---------- My reservations ---------- */
+.page-head-actions { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.seg-tabs { display: flex; flex-wrap: wrap; gap: 6px; background: #eaecf0; padding: 4px; border-radius: 11px; margin-bottom: 20px; width: fit-content; max-width: 100%; }
+.seg-tab { border: 0; background: transparent; padding: 7px 14px; border-radius: 8px; font-weight: 600; font-size: 14px; color: var(--muted); }
+.seg-tab:hover { color: var(--text); }
+.seg-tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(16, 24, 40, .12); }
+.seg-count { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 4px; border-radius: 999px; background: rgba(16, 24, 40, .08); font-size: 12px; }
+.res-list { display: grid; gap: 16px; }
+.res-card { display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; margin-bottom: 0; }
+.res-card.is-cancelled { background: #fcfcfd; }
+.res-card.is-cancelled .res-dates, .res-card.is-cancelled .res-rooms { opacity: .65; }
+.res-main { flex: 1 1 420px; min-width: 0; }
+.res-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.res-id { font-weight: 700; font-size: 17px; }
+.res-dates { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; font-weight: 600; margin-bottom: 14px; }
+.res-dates .stat-label, .res-side .stat-label { display: block; color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+.res-rooms { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-size: 14px; }
+.res-side { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
+.res-total { font-size: 24px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
+.res-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 12px; justify-content: flex-end; }
+.show-more { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 24px; font-size: 14px; }
+.btn-danger-ghost { color: var(--danger); }
+.btn-danger-ghost:hover, .btn-danger-ghost:focus { color: var(--danger); background: var(--danger-soft); border-color: #f2c7c3; }
+
 /* ---------- Saved cards ---------- */
 .card-number { font-family: "SFMono-Regular", Menlo, Consolas, monospace; letter-spacing: .08em; font-weight: 600; }
 
@@ -414,4 +438,6 @@ textarea.form-control { height: auto; min-height: 110px; resize: vertical; }
 	.card-ui-footer { margin: 18px -18px -18px; padding: 14px 18px; }
 	.card-ui-body { padding: 0 18px 18px; }
 	.user-chip .role-tag { display: none; }
+	.res-side { align-items: flex-start; text-align: left; flex-basis: 100%; border-top: 1px solid var(--border); padding-top: 14px; }
+	.res-actions { justify-content: flex-start; }
 }

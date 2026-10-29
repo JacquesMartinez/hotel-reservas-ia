@@ -688,6 +688,45 @@ class MysqlManager(object):
 		finally:
 			cursor.close()
 	
+	def get_reservations(self, username):
+		cursor = self.connection.cursor()
+		try:
+			#one query for every reservation of the user and its rooms, instead of one per reservation; only last4 of the card leaves the db
+			cursor.execute('''
+				SELECT res.reservation_id, res.checkin_date, res.checkout_date, res.total_cost, res.cancelled_or_not, card.last4,
+					bed.location, bed.room_number, room.type, bed.extra_bed_or_not
+				FROM Fancy_Hotel.Reservation AS res
+				LEFT JOIN Fancy_Hotel.Credit_Card AS card ON card.card_number = res.card_number
+				LEFT JOIN Fancy_Hotel.Reserves_Extra_Bed AS bed ON bed.reservation_id = res.reservation_id
+				LEFT JOIN Fancy_Hotel.Room AS room ON room.location = bed.location AND room.room_number = bed.room_number
+				WHERE res.username = %(username)s
+				ORDER BY res.checkin_date DESC, res.reservation_id DESC, bed.location, bed.room_number;
+				''',
+				{"username": username}
+			)
+			reservations = {} #keeps the order of the query
+			for reservation_id, checkin_date, checkout_date, total_cost, cancelled_or_not, last4, location, room_number, room_type, extra_bed_or_not in cursor.fetchall():
+				if reservation_id not in reservations:
+					reservations[reservation_id] = {
+						"reservation_id": reservation_id,
+						"checkin_date": str(checkin_date),
+						"checkout_date": str(checkout_date),
+						"total_cost": total_cost,
+						"cancelled_or_not": cancelled_or_not,
+						"card_last4": last4,
+						"rooms": []
+					}
+				if room_number is not None:
+					reservations[reservation_id]["rooms"].append({
+						"location": location,
+						"room_number": room_number,
+						"room_type": room_type,
+						"extra_bed_or_not": extra_bed_or_not
+					})
+			return list(reservations.values())
+		finally:
+			cursor.close()
+
 	def get_reservation_by_card_number(self, username, card_number):
 		cursor = self.connection.cursor()
 		try:

@@ -1,38 +1,56 @@
 <!DOCTYPE html>
-<html ng-app="FancyHotelApp" >
+<html ng-app="FancyHotelApp" lang="en">
 <head>
-	<style>
-		table{
-			width: 100%;
-		}
-		table, th, td {
-		    border: 1px solid black;
-		    border-collapse: collapse;
-		    
-		}
-		th, td {
-		    padding: 5px;
-		}
-	</style>
 	<meta charset="utf-8"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>
 		Fancy Hotel
 	</title>
 
- <!-- Latest compiled and minified CSS, Bootstrap -->
-<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+<!-- Latest compiled and minified CSS, Bootstrap -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
 <link rel="stylesheet" href="static/libs/bootstrap-datepicker.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap">
+<link rel="stylesheet" href="static/css/app.css">
 </head>
 
 <body>
 
-<p><h1>Fancy Hotel 4400</h1></p>
-<p ng-show="currentUser"><span ng-bind="currentUser"></span> - <a href="" ng-click="logout()">Log out</a></p>
+<nav class="app-navbar">
+	<div class="container">
+		<a class="brand" href="#/">
+			<span class="brand-mark">FH</span>
+			<span>Fancy Hotel <small>4400</small></span>
+		</a>
 
+		<div class="nav-actions" ng-show="currentUser" ng-cloak>
+			<a class="btn btn-ghost btn-sm" href="#/portal"><span class="glyphicon glyphicon-th-large"></span>Portal</a>
+			<span class="user-chip">
+				<span class="avatar" ng-bind="currentUser.charAt(0)"></span>
+				<span ng-bind="currentUser"></span>
+				<span class="role-tag" ng-bind="userType"></span>
+			</span>
+			<a class="btn btn-default btn-sm" href="" ng-click="logout()"><span class="glyphicon glyphicon-log-out"></span>Log out</a>
+		</div>
 
+		<div class="nav-actions" ng-hide="currentUser" ng-cloak>
+			<a class="btn btn-ghost btn-sm" href="#/login">Login</a>
+			<a class="btn btn-primary btn-sm" href="#/register">Create account</a>
+		</div>
+	</div>
+</nav>
 
-<div id="content" ng-view></div>
+<main class="app-main">
+	<div class="container">
+		<div id="content" ng-view></div>
+	</div>
+</main>
+
+<footer class="app-footer">
+	<div class="container">&copy; Fancy Hotel 4400 &middot; Atlanta &middot; Charlotte &middot; Savannah &middot; Orlando &middot; Miami</div>
+</footer>
 
 <!--Scripts up in here-->
 <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.6/angular.js"></script>
@@ -45,7 +63,7 @@
 <!-- jQuery library, the end goal is to not need this. -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 <!-- Latest compiled JavaScript -->
-<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
 <script src="static/libs/moment.js"></script>
 <script src="static/libs/bootstrap-datepicker.js"></script>
 <!-- Chart.js for the demand forecast; fixed version + SRI hash so the CDN can't change what runs -->

@@ -1,5 +1,6 @@
 import os
 import secrets
+import threading
 import mysql.connector
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -7,8 +8,29 @@ from werkzeug.security import generate_password_hash, check_password_hash
 class MysqlManager(object):
 
 	def __init__(self):
+		self._local = threading.local() #must exist before the connection setter is used
 		self.connection = self.connect('sys')
 		self.init_db()
+
+	@property
+	def connection(self):
+		#one connection per thread: Flask serves requests in parallel threads, and two threads
+		#sharing one connection crash the MySQL C extension (malloc "pointer being freed was not allocated")
+		connection = getattr(self._local, 'connection', None)
+		if connection is None:
+			connection = self._local.connection = self.connect('Fancy_Hotel')
+		return connection
+
+	@connection.setter
+	def connection(self, value):
+		self._local.connection = value
+
+	def close_connection(self):
+		#called when a request ends so the per-thread connections don't pile up
+		connection = getattr(self._local, 'connection', None)
+		self._local.connection = None
+		if connection is not None:
+			connection.close()
 
 	def connect(self, database):
 		#credentials come from the environment (.env), never from the code
@@ -36,9 +58,9 @@ class MysqlManager(object):
 				'''CREATE TABLE IF NOT EXISTS Fancy_Hotel.Customer (
   					username CHAR(5) NOT NULL,
   					password VARCHAR(255) NOT NULL,
-  					first_name VARCHAR(20) NOT NULL,
-  					last_name VARCHAR(20) NOT NULL,
-  					email VARCHAR(30) NOT NULL,
+  					first_name VARCHAR(50) NOT NULL,
+  					last_name VARCHAR(50) NOT NULL,
+  					email VARCHAR(255) NOT NULL,
   					PRIMARY KEY (username),
   					UNIQUE(email)
   				);'''
@@ -56,6 +78,27 @@ class MysqlManager(object):
 			#MODIFY with the same definition is a no-op, so this is safe on every start
 			cursor.execute('''ALTER TABLE Fancy_Hotel.Customer MODIFY password VARCHAR(255) NOT NULL;''')
 			cursor.execute('''ALTER TABLE Fancy_Hotel.Manager MODIFY password VARCHAR(255) NOT NULL;''')
+			#email VARCHAR(30) and names VARCHAR(20) rejected ordinary registrations with "Data too long"
+			cursor.execute(
+				'''ALTER TABLE Fancy_Hotel.Customer
+				MODIFY first_name VARCHAR(50) NOT NULL,
+				MODIFY last_name VARCHAR(50) NOT NULL,
+				MODIFY email VARCHAR(255) NOT NULL;'''
+			)
+
+			#rows created before S5 (old seed/register) keep the password in plain text, and login only accepts hashes:
+			#hash them once; werkzeug hashes start with "<method>:", so this is a no-op on every later start
+			for table in ['Fancy_Hotel.Customer', 'Fancy_Hotel.Manager']:
+				cursor.execute(
+					'''SELECT username, password FROM ''' + table + '''
+					WHERE password NOT LIKE 'scrypt:%' AND password NOT LIKE 'pbkdf2:%';'''
+				)
+				for username, password in cursor.fetchall():
+					cursor.execute(
+						'''UPDATE ''' + table + ''' SET password = %(password)s WHERE username = %(username)s''',
+						{'password': generate_password_hash(password), 'username': username}
+					)
+			self.connection.commit()
 
 			#card_number keeps its name for the Reservation FK, but stores a server token, never the real number (D-02, D-08)
 			cursor.execute(
@@ -197,6 +240,21 @@ class MysqlManager(object):
 		finally:
 			cursor.close()
 
+
+	def get_customer_email(self, username):
+		#returns the customer's email, or None if the customer does not exist
+		cursor = self.connection.cursor()
+		try:
+			cursor.execute(
+				'''SELECT email
+				FROM Fancy_Hotel.Customer
+				WHERE username = %(username)s''',
+				{'username': username}
+			)
+			rows = cursor.fetchall()
+			return rows[0][0] if rows else None
+		finally:
+			cursor.close()
 
 	def register_user(self, username, email, password, firstName, lastName):
 		cursor = self.connection.cursor()
@@ -630,6 +688,45 @@ class MysqlManager(object):
 		finally:
 			cursor.close()
 	
+	def get_reservations(self, username):
+		cursor = self.connection.cursor()
+		try:
+			#one query for every reservation of the user and its rooms, instead of one per reservation; only last4 of the card leaves the db
+			cursor.execute('''
+				SELECT res.reservation_id, res.checkin_date, res.checkout_date, res.total_cost, res.cancelled_or_not, card.last4,
+					bed.location, bed.room_number, room.type, bed.extra_bed_or_not
+				FROM Fancy_Hotel.Reservation AS res
+				LEFT JOIN Fancy_Hotel.Credit_Card AS card ON card.card_number = res.card_number
+				LEFT JOIN Fancy_Hotel.Reserves_Extra_Bed AS bed ON bed.reservation_id = res.reservation_id
+				LEFT JOIN Fancy_Hotel.Room AS room ON room.location = bed.location AND room.room_number = bed.room_number
+				WHERE res.username = %(username)s
+				ORDER BY res.checkin_date DESC, res.reservation_id DESC, bed.location, bed.room_number;
+				''',
+				{"username": username}
+			)
+			reservations = {} #keeps the order of the query
+			for reservation_id, checkin_date, checkout_date, total_cost, cancelled_or_not, last4, location, room_number, room_type, extra_bed_or_not in cursor.fetchall():
+				if reservation_id not in reservations:
+					reservations[reservation_id] = {
+						"reservation_id": reservation_id,
+						"checkin_date": str(checkin_date),
+						"checkout_date": str(checkout_date),
+						"total_cost": total_cost,
+						"cancelled_or_not": cancelled_or_not,
+						"card_last4": last4,
+						"rooms": []
+					}
+				if room_number is not None:
+					reservations[reservation_id]["rooms"].append({
+						"location": location,
+						"room_number": room_number,
+						"room_type": room_type,
+						"extra_bed_or_not": extra_bed_or_not
+					})
+			return list(reservations.values())
+		finally:
+			cursor.close()
+
 	def get_reservation_by_card_number(self, username, card_number):
 		cursor = self.connection.cursor()
 		try:

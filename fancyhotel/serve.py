@@ -16,6 +16,11 @@ app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax")
 api = Api(app)
 
 
+@app.teardown_appcontext
+def close_db_connection(exception):
+	restapi.db.mysqldb.close_connection() #each request thread opens its own connection; close it when done
+
+
 @app.route('/')
 def index():
 	return render_template("index.html")
@@ -26,6 +31,7 @@ api.add_resource(restapi.LogoutResource, '/api/logout')
 api.add_resource(restapi.NewUserRegistrationResource, '/api/register')
 api.add_resource(restapi.SearchRoomsResource, '/api/searchRoom')
 api.add_resource(restapi.AvailabilityResource, '/api/availability')
+api.add_resource(restapi.MyReservationsResource, '/api/reservations')
 api.add_resource(restapi.CreateReservationResource, '/api/reservation/create')
 api.add_resource(restapi.UpdateReservationResource, '/api/reservation')
 api.add_resource(restapi.ReservationResource, '/api/reservation/<string:reservation_id>') #includes update_reservation

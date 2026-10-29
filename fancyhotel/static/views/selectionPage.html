@@ -1,26 +1,74 @@
-<div ng-hide="{{loggedInBool}}" important>
-	<h1>You aren't logged in yet! Please <a href="#/login">login</a> to view this page.</h1>
+<div class="card-ui state-card" ng-hide="{{loggedInBool}}">
+	<span class="state-icon"><span class="glyphicon glyphicon-lock"></span></span>
+	<h2>You aren't logged in yet!</h2>
+	<p>Please <a href="#/login">login</a> to view this page.</p>
 </div>
 
-<div ng-show="{{loggedInBool}}" important>
-<h1>Hello {{currentUser}} ! </h1><br />
-
-
-
-<div ng-show="{{userType=='customer'}}">
-  <p><a href="#/reserve">Make a new reservation</a> </p>
-  <p><a href="#/update">Update your reservation</a> </p>
-  <p><a href="#/cancel">Cancel reservation</a> </p>
-  <p><a href="#/provideFeedback">Provide feedback</a> </p>
-  <p><a href="#/viewFeedback">view feedback</a> </p>
+<div ng-show="{{loggedInBool}}">
+<div class="page-head">
+	<span class="eyebrow">Hello {{currentUser}}!</span>
+	<h1>What would you like to do?</h1>
+	<p class="subtitle">You are a <span class="pill pill-accent">{{userType}}</span></p>
 </div>
 
-<div ng-show="{{userType=='manager'}}">
-  <p><a href="#/resReport">View reservation Report</a> </p>
-  <p><a href="#/popCatReport">View popular room category report</a> </p>
-  <p><a href="#/revenueReport">View Revenue Report</a> </p>
-  <p><a href="#/forecastReport">View demand forecast</a> </p>
+<div class="tile-grid" ng-show="{{userType=='customer'}}">
+	<a class="tile" href="#/myReservations">
+		<span class="icon-bubble success"><span class="glyphicon glyphicon-list-alt"></span></span>
+		<div><h3>My reservations</h3><p>See your upcoming, past and cancelled stays.</p></div>
+		<span class="tile-go">View &rarr;</span>
+	</a>
+	<a class="tile" href="#/reserve">
+		<span class="icon-bubble"><span class="glyphicon glyphicon-search"></span></span>
+		<div><h3>Make a new reservation</h3><p>Search available rooms by location and dates.</p></div>
+		<span class="tile-go">Start &rarr;</span>
+	</a>
+	<a class="tile" href="#/update">
+		<span class="icon-bubble accent"><span class="glyphicon glyphicon-calendar"></span></span>
+		<div><h3>Update your reservation</h3><p>Move the dates of an existing stay.</p></div>
+		<span class="tile-go">Update &rarr;</span>
+	</a>
+	<a class="tile" href="#/cancel">
+		<span class="icon-bubble danger"><span class="glyphicon glyphicon-remove-circle"></span></span>
+		<div><h3>Cancel reservation</h3><p>Review the refund before cancelling.</p></div>
+		<span class="tile-go">Cancel &rarr;</span>
+	</a>
+	<a class="tile" href="#/payment">
+		<span class="icon-bubble"><span class="glyphicon glyphicon-credit-card"></span></span>
+		<div><h3>Payment methods</h3><p>Add, remove or choose your default card.</p></div>
+		<span class="tile-go">Manage &rarr;</span>
+	</a>
+	<a class="tile" href="#/provideFeedback">
+		<span class="icon-bubble success"><span class="glyphicon glyphicon-pencil"></span></span>
+		<div><h3>Provide feedback</h3><p>Tell us how your stay went.</p></div>
+		<span class="tile-go">Write &rarr;</span>
+	</a>
+	<a class="tile" href="#/viewFeedback">
+		<span class="icon-bubble accent"><span class="glyphicon glyphicon-star"></span></span>
+		<div><h3>View feedback</h3><p>Read reviews for each location.</p></div>
+		<span class="tile-go">Browse &rarr;</span>
+	</a>
 </div>
 
-<h2>You are a {{userType}}!</h2>
+<div class="tile-grid" ng-show="{{userType=='manager'}}">
+	<a class="tile" href="#/resReport">
+		<span class="icon-bubble"><span class="glyphicon glyphicon-list-alt"></span></span>
+		<div><h3>View reservation Report</h3><p>Reservations by month and location.</p></div>
+		<span class="tile-go">Open &rarr;</span>
+	</a>
+	<a class="tile" href="#/popCatReport">
+		<span class="icon-bubble accent"><span class="glyphicon glyphicon-bed"></span></span>
+		<div><h3>View popular room category report</h3><p>Most booked room types per location.</p></div>
+		<span class="tile-go">Open &rarr;</span>
+	</a>
+	<a class="tile" href="#/revenueReport">
+		<span class="icon-bubble success"><span class="glyphicon glyphicon-usd"></span></span>
+		<div><h3>View Revenue Report</h3><p>Revenue by month and location.</p></div>
+		<span class="tile-go">Open &rarr;</span>
+	</a>
+	<a class="tile" href="#/forecastReport">
+		<span class="icon-bubble danger"><span class="glyphicon glyphicon-stats"></span></span>
+		<div><h3>View demand forecast</h3><p>Weekly occupancy forecast and pricing hints.</p></div>
+		<span class="tile-go">Open &rarr;</span>
+	</a>
+</div>
 </div>

@@ -331,3 +331,52 @@
 - **Decisión del equipo:** aprobado.
 - **Justificación:** el issue no lo requiere. B10 queda registrado.
 - **Rechazado de la IA (si aplica):** —
+
+## D-41: Envío del correo síncrono
+- **Fecha / Issue:** 2026-10-28 / #8
+- **Contexto:** el correo se envía dentro de la misma petición que crea la reserva.
+- **Propuesta de la IA:** envío síncrono con `timeout=10`. Avisó que en el peor caso la respuesta puede tardar hasta 10 s.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** es la solución más simple para el alcance del issue, y un fallo del envío nunca hace fallar la reserva.
+- **Rechazado de la IA (si aplica):** —
+
+## D-42: Sin STARTTLS por ahora
+- **Fecha / Issue:** 2026-10-28 / #8
+- **Contexto:** la especificación solo pide login. Mailpit no necesita TLS, pero un SMTP real como Gmail en el puerto 587 sí.
+- **Propuesta de la IA:** no agregar STARTTLS, y hacerlo más adelante con una variable `MAIL_TLS` si hace falta.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** está fuera del contrato del issue. En desarrollo se usa Mailpit.
+- **Rechazado de la IA (si aplica):** —
+
+## D-43: Correo y código en inglés
+- **Fecha / Issue:** 2026-10-28 / #8
+- **Contexto:** el idioma del texto del correo no estaba definido.
+- **Propuesta de la IA:** identificadores, comentarios y texto del correo en inglés.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** consistencia con el resto del código y de la interfaz (ver D-38).
+- **Rechazado de la IA (si aplica):** —
+
+## D-44: Registro de errores sin traceback
+- **Fecha / Issue:** 2026-10-28 / #8
+- **Contexto:** los fallos del envío deben registrarse a nivel ERROR sin incluir contraseñas.
+- **Propuesta de la IA:** registrar solo el id de la reserva y el tipo y mensaje de la excepción, sin traceback ni variables.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** un traceback con variables locales podría exponer `MAIL_PASSWORD`.
+- **Rechazado de la IA (si aplica):** —
+
+## D-45: Comportamiento por defecto y modo desconocido
+- **Fecha / Issue:** 2026-10-28 / #8
+- **Contexto:** el issue solo fija `MAIL_MODE=console` como valor por defecto.
+- **Propuesta de la IA:** por defecto `localhost`, puerto 25 y remitente `no-reply@fancyhotel.local`. Un `MAIL_MODE` desconocido lanza `ValueError`, que se registra como error sin afectar la reserva.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** una configuración errónea queda visible en el log sin romper la reserva.
+- **Rechazado de la IA (si aplica):** —
+
+## D-46: Pruebas unitarias del correo en un archivo aparte
+- **Fecha / Issue:** 2026-10-28 / #8
+- **Contexto:** `test_correo.py` ya existe en integración.
+- **Propuesta de la IA:** crear `tests/unit/test_envio_correo.py` sin MySQL y no modificar las pruebas unitarias existentes.
+- **Decisión del equipo:** aprobado.
+- **Justificación:** evita el choque de nombres si se ejecuta `pytest tests`.
+- **Rechazado de la IA (si aplica):** —
+

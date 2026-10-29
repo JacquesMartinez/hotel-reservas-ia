@@ -1,37 +1,38 @@
-
-
-
-<div ng-hide="{{loggedInBool}}" important>
-	<h1>You aren't logged in yet! Please <a href="#/login">login</a> to view this page.</h1>
+<div class="card-ui state-card" ng-hide="{{loggedInBool}}">
+	<span class="state-icon"><span class="glyphicon glyphicon-lock"></span></span>
+	<h2>You aren't logged in yet!</h2>
+	<p>Please <a href="#/login">login</a> to view this page.</p>
 </div>
 
-<div ng-show="{{loggedInBool}}" important>
-<h1>Hello {{currentUser}} ! </h1><br />
+<div ng-show="{{loggedInBool}}">
+<a class="back-link" href="#/portal"><span class="glyphicon glyphicon-chevron-left"></span>Return to the portal page</a>
 
-<div ng-show="{{userType=='customer'}}">
-  Only managers can vew reports. Please login to a manager account to view this page.
+<div class="page-head">
+	<span class="eyebrow">Hello {{currentUser}}!</span>
+	<h1>Popular Room-Category Report</h1>
+	<p class="subtitle">Most reserved room categories per location.</p>
+</div>
+
+<div class="alert alert-warning" ng-show="{{userType=='customer'}}">
+	<span class="glyphicon glyphicon-info-sign"></span>Only managers can vew reports. Please login to a manager account to view this page.
 </div>
 
 <div ng-show="{{userType=='manager'}}">
 
-<h2>Popular Room-Category Report</h2>
-
-<ul ng-repeat="(month, locgroup) in popCatReport">
-  <li>{{getMonth(month)}}</li>
-  <ul ng-repeat="(location, stats) in locgroup">
-    <li >{{location}}</li>
-    	<ul ng-repeat="stat in stats">
-    		<li>
-    			{{stat.type}}: {{stat.count}}
-    		</li>
-    	</ul>
-    </li>
-  </ul>
-</ul>
-
-
-
+<div class="report-grid">
+	<div class="card-ui" ng-repeat="(month, locgroup) in popCatReport">
+		<h3 class="card-ui-title"><span class="glyphicon glyphicon-calendar"></span>{{getMonth(month)}}</h3>
+		<div class="location-block" ng-repeat="(location, stats) in locgroup">
+			<h4>{{location}}</h4>
+			<ul class="kv-list">
+				<li ng-repeat="stat in stats">
+					<span>{{stat.type}}</span>
+					<span class="kv-value">{{stat.count}}</span>
+				</li>
+			</ul>
+		</div>
+	</div>
 </div>
 
-<a href="#/portal">Return to the portal page</a>
+</div>
 </div>

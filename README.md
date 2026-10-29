@@ -40,8 +40,34 @@ Abre `http://localhost:5000` (o el puerto definido en `PORT`).
 | `DB_HOST` | Host de MySQL | `127.0.0.1` |
 | `DB_PORT` | Puerto de MySQL | `3306` |
 | `PORT` | Puerto de la app Flask | `5000` |
+| `MAIL_MODE` | `console` imprime el correo de confirmación en la terminal; `smtp` lo envía | `console` |
+| `MAIL_HOST` | Servidor SMTP (solo modo `smtp`) | `localhost` |
+| `MAIL_PORT` | Puerto SMTP (solo modo `smtp`) | `25` |
+| `MAIL_FROM` | Remitente del correo | `no-reply@fancyhotel.local` |
+| `MAIL_USER` | Usuario SMTP; si está vacío no se hace login | (vacía) |
+| `MAIL_PASSWORD` | Contraseña SMTP | (vacía) |
 
 `.env` está en `.gitignore`; nunca subas credenciales al repositorio.
+
+## Correos en desarrollo (Mailpit)
+
+Al crear una reserva se envía un correo de confirmación al email del cliente. Si el envío falla, la reserva se crea igual y el error queda en el log.
+
+Por defecto (`MAIL_MODE=console`) el correo solo se imprime en la terminal donde corre `serve.py`. Para verlo como un correo real, usa [Mailpit](https://mailpit.axllent.org/), un servidor SMTP local que no entrega nada hacia afuera:
+
+```bash
+docker run -d -p 1025:1025 -p 8025:8025 axllent/mailpit
+```
+
+y en `.env`:
+
+```
+MAIL_MODE=smtp
+MAIL_HOST=localhost
+MAIL_PORT=1025
+```
+
+Reinicia la app, crea una reserva y abre la bandeja en http://localhost:8025.
 
 ## Datos semilla
 
